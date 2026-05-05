@@ -216,7 +216,7 @@ export function mount(root, { api, toast, escapeHtml }) {
       const specLabel = sku.spec ? ` / ${escapeHtml(sku.spec)}` : "";
       button.innerHTML = `<strong>${escapeHtml(sku.sku_code)}</strong><span>${escapeHtml(sku.sku_name)}${setLabel}${specLabel}</span>`;
       button.addEventListener("click", () => {
-        if (state.activeSkuInput) state.activeSkuInput.value = sku.sku_code;
+        applySkuToSelection(sku.sku_code);
         $('[data-role="sku-dialog"]').close();
       });
       box.appendChild(button);
@@ -282,6 +282,27 @@ export function mount(root, { api, toast, escapeHtml }) {
     const data = await api("/api/mapping/bulk", { method: "POST", body: JSON.stringify({ created_by: "admin-ui", items }) });
     toast(`일괄 매핑 완료: ${data.success}/${data.total}`);
     await refresh();
+  }
+
+  function selectedSkuInputs() {
+    return Array.from(root.querySelectorAll(".row-check:checked"))
+      .map((checkbox) => checkbox.closest("tr")?.querySelector(".sku-input"))
+      .filter(Boolean);
+  }
+
+  function applySkuToSelection(skuCode) {
+    const inputs = selectedSkuInputs();
+    if (inputs.length) {
+      inputs.forEach((input) => {
+        input.value = skuCode;
+      });
+      toast(`선택된 ${inputs.length}개 옵션에 SKU를 적용했습니다.`);
+      return;
+    }
+    if (state.activeSkuInput) {
+      state.activeSkuInput.value = skuCode;
+      toast("SKU를 입력했습니다.");
+    }
   }
 
   function syncGroupCheckbox(key) {
