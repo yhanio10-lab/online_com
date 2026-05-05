@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS sku_master (
   sale_price REAL NOT NULL DEFAULT 0,
   sale_price_vat_included INTEGER NOT NULL DEFAULT 0,
   item_type TEXT,
+  is_set INTEGER NOT NULL DEFAULT 0,
   inventory_managed INTEGER NOT NULL DEFAULT 0,
   location TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
@@ -59,6 +60,17 @@ CREATE TABLE IF NOT EXISTS sku_price_histories (
   changed_by TEXT NOT NULL,
   changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   reason TEXT
+);
+
+CREATE TABLE IF NOT EXISTS sku_bundle_components (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  parent_sku_code TEXT NOT NULL REFERENCES sku_master(sku_code),
+  component_sku_code TEXT NOT NULL REFERENCES sku_master(sku_code),
+  component_quantity INTEGER NOT NULL DEFAULT 1,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(parent_sku_code, component_sku_code)
 );
 
 CREATE TABLE IF NOT EXISTS sku_mappings (
@@ -135,6 +147,10 @@ CREATE INDEX IF NOT EXISTS idx_sku_mappings_sku_code
   ON sku_mappings(sku_code);
 CREATE INDEX IF NOT EXISTS idx_sku_price_histories_sku_code
   ON sku_price_histories(sku_code);
+CREATE INDEX IF NOT EXISTS idx_sku_bundle_components_parent
+  ON sku_bundle_components(parent_sku_code);
+CREATE INDEX IF NOT EXISTS idx_sku_bundle_components_component
+  ON sku_bundle_components(component_sku_code);
 CREATE INDEX IF NOT EXISTS idx_sales_items_sku_code
   ON sales_order_items(sku_code);
 CREATE INDEX IF NOT EXISTS idx_inventory_snapshots_sku_at

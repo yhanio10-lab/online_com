@@ -17,6 +17,7 @@ export function createSeedData() {
       sku_mappings: 1,
       mapping_histories: 1,
       sku_price_histories: 0,
+      sku_bundle_components: 0,
       sales_orders: 1,
       sales_order_items: 1,
       inventory_snapshots: 3,
@@ -39,6 +40,7 @@ export function createSeedData() {
       createSeedSku("EC-POUCH-L-OLD", "코튼 파우치 대형 구형", false, createdAt)
     ],
     sku_price_histories: [],
+    sku_bundle_components: [],
     sku_mappings: [
       { id: 1, platform: "smartstore", product_option_id: 1, sku_code: "EC-TUMBLER-RED-500", mapping_status: "active", created_by: "seed", created_at: createdAt, updated_at: createdAt }
     ],
@@ -68,6 +70,7 @@ function createSeedSku(skuCode, skuName, isActive, createdAt) {
     sale_price: 0,
     sale_price_vat_included: false,
     item_type: "",
+    is_set: false,
     inventory_managed: false,
     location: "",
     is_active: isActive,
@@ -143,8 +146,12 @@ export class JsonDatabase {
   normalize() {
     if (!this.data.sequences) this.data.sequences = {};
     if (!Array.isArray(this.data.sku_price_histories)) this.data.sku_price_histories = [];
+    if (!Array.isArray(this.data.sku_bundle_components)) this.data.sku_bundle_components = [];
     if (!this.data.sequences.sku_price_histories) {
       this.data.sequences.sku_price_histories = this.data.sku_price_histories.reduce((max, item) => Math.max(max, item.id || 0), 0);
+    }
+    if (!this.data.sequences.sku_bundle_components) {
+      this.data.sequences.sku_bundle_components = this.data.sku_bundle_components.reduce((max, item) => Math.max(max, item.id || 0), 0);
     }
     const timestamp = new Date().toISOString();
     for (const product of this.data.products || []) {
@@ -169,6 +176,7 @@ export class JsonDatabase {
       sku.sale_price ??= 0;
       sku.sale_price_vat_included ??= false;
       sku.item_type ??= "";
+      sku.is_set ??= false;
       sku.inventory_managed ??= false;
       sku.location ??= "";
       sku.price_updated_at ??= timestamp;

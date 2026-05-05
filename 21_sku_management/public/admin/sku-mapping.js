@@ -1,9 +1,18 @@
 const state = {
   rows: [],
-  activeSkuInput: null
+  activeSkuInput: null,
+  searchTimer: null
 };
 
 const $ = (selector) => document.querySelector(selector);
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 function toast(message) {
   const node = $("#toast");
@@ -43,19 +52,21 @@ function renderRows(rows) {
     const tr = document.createElement("tr");
     if (row.mapping_status === "conflict") tr.className = "conflict-row";
     tr.innerHTML = `
-      <td><input class="row-check" type="checkbox" data-option-id="${row.id}" data-platform="${row.platform}"></td>
-      <td>${row.platform}</td>
-      <td>${row.product_name}</td>
-      <td>${row.option_name}</td>
-      <td>${row.option_id}</td>
+      <td><input class="row-check" type="checkbox" data-option-id="${row.id}" data-platform="${escapeHtml(row.platform)}"></td>
+      <td>${escapeHtml(row.platform)}</td>
+      <td>${escapeHtml(row.platform_product_id)}</td>
+      <td>${escapeHtml(row.seller_product_code)}</td>
+      <td>${escapeHtml(row.product_name)}</td>
+      <td>${escapeHtml(row.option_name)}</td>
+      <td>${escapeHtml(row.option_id)}</td>
       <td>
         <div class="sku-cell">
-          <input class="sku-input" value="${row.current_sku_code || ""}" placeholder="SKU 코드" data-mapping-id="${row.current_mapping_id || ""}" data-option-id="${row.id}" data-platform="${row.platform}">
+          <input class="sku-input" value="${escapeHtml(row.current_sku_code || "")}" placeholder="SKU 코드" data-mapping-id="${row.current_mapping_id || ""}" data-option-id="${row.id}" data-platform="${escapeHtml(row.platform)}">
           <button class="sku-search-btn" title="SKU 검색">⌕</button>
         </div>
       </td>
-      <td>${row.recommended_sku_code || ""}</td>
-      <td><span class="status ${row.mapping_status}" title="${row.conflict_reasons.join("\n")}">${statusLabel(row.mapping_status)}</span></td>
+      <td>${escapeHtml(row.recommended_sku_code || "")}</td>
+      <td><span class="status ${escapeHtml(row.mapping_status)}" title="${escapeHtml(row.conflict_reasons.join("\n"))}">${statusLabel(row.mapping_status)}</span></td>
       <td><button class="save-btn">저장</button></td>
     `;
     tbody.appendChild(tr);
@@ -116,7 +127,8 @@ async function renderSkuResults(q) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "sku-result";
-    button.innerHTML = `<strong>${sku.sku_code}</strong><span>${sku.sku_name} / 입고 ${sku.purchase_price || 0} / 출고 ${sku.sale_price || 0}</span>`;
+    const setLabel = sku.is_set ? " / 세트" : "";
+    button.innerHTML = `<strong>${escapeHtml(sku.sku_code)}</strong><span>${escapeHtml(sku.sku_name)}${setLabel} / 입고 ${sku.purchase_price || 0} / 출고 ${sku.sale_price || 0}</span>`;
     button.addEventListener("click", () => {
       if (state.activeSkuInput) state.activeSkuInput.value = sku.sku_code;
       $("#skuDialog").close();
