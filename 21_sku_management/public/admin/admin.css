@@ -195,6 +195,27 @@ tr.conflict-row {
   background: var(--danger-bg);
 }
 
+tr.group-row {
+  background: #edf4fa;
+}
+
+tr.group-row td {
+  border-top: 2px solid #c9d8e6;
+}
+
+tr.group-row strong {
+  margin: 0 10px;
+}
+
+.group-summary {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.group-child-row td:first-child {
+  padding-left: 28px;
+}
+
 .sku-cell,
 .inline-form {
   display: flex;

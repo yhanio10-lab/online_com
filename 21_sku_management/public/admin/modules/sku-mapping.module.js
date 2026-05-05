@@ -1,5 +1,12 @@
 export function mount(root, { api, toast, escapeHtml }) {
-  const state = { activeSkuInput: null, searchTimer: null, dialogPosition: null };
+  const state = {
+    activeSkuInput: null,
+    searchTimer: null,
+    dialogPosition: null,
+    rows: [],
+    viewMode: "option",
+    collapsedGroups: new Set()
+  };
 
   root.innerHTML = `
     <section class="kpis" aria-label="SKU 매핑 KPI">
@@ -21,6 +28,10 @@ export function mount(root, { api, toast, escapeHtml }) {
         <option value="conflict">충돌</option>
       </select>
       <input data-filter="q" type="search" placeholder="상품번호, 상품명, 옵션명, 옵션ID, SKU 검색" />
+      <select data-role="view-mode" aria-label="보기 방식">
+        <option value="option">옵션별</option>
+        <option value="group">상품별 그룹</option>
+      </select>
       <button data-action="search">검색</button>
       <button data-action="bulk-map">선택 일괄 매핑</button>
     </section>
@@ -62,6 +73,10 @@ export function mount(root, { api, toast, escapeHtml }) {
     return { mapped: "매핑완료", unmapped: "미매핑", conflict: "충돌" }[status] || status;
   }
 
+  function groupKey(row) {
+    return `${row.platform}::${row.platform_product_id || row.product_id}`;
+  }
+
   function renderKpis(kpis) {
     $('[data-kpi="total"]').textContent = kpis.total_options;
     $('[data-kpi="mapped"]').textContent = kpis.mapped;
@@ -69,14 +84,10 @@ export function mount(root, { api, toast, escapeHtml }) {
     $('[data-kpi="conflicts"]').textContent = kpis.conflicts;
   }
 
-  function renderRows(rows) {
-    const tbody = $('[data-role="rows"]');
-    tbody.innerHTML = "";
-    for (const row of rows) {
-      const tr = document.createElement("tr");
-      if (row.mapping_status === "conflict") tr.className = "conflict-row";
-      tr.innerHTML = `
-        <td><input class="row-check" type="checkbox" data-option-id="${row.id}" data-platform="${escapeHtml(row.platform)}"></td>
+  function optionRowHtml(row, extraClass = "", key = "") {
+    return `
+      <tr class="${extraClass} ${row.mapping_status === "conflict" ? "conflict-row" : ""}" ${key ? `data-group-key="${escapeHtml(key)}"` : ""}>
+        <td><input class="row-check" type="checkbox" data-option-id="${row.id}" data-platform="${escapeHtml(row.platform)}" ${key ? `data-group-key="${escapeHtml(key)}"` : ""}></td>
         <td>${escapeHtml(row.platform)}</td>
         <td>${escapeHtml(row.platform_product_id)}</td>
         <td>${escapeHtml(row.product_name)}</td>
@@ -91,9 +102,67 @@ export function mount(root, { api, toast, escapeHtml }) {
         <td>${escapeHtml(row.recommended_sku_code || "")}</td>
         <td><span class="status ${escapeHtml(row.mapping_status)}" title="${escapeHtml(row.conflict_reasons.join("\n"))}">${statusLabel(row.mapping_status)}</span></td>
         <td><button class="save-btn">저장</button></td>
-      `;
-      tbody.appendChild(tr);
+      </tr>
+    `;
+  }
+
+  function renderRows(rows) {
+    $('[data-role="rows"]').innerHTML = rows.map((row) => optionRowHtml(row)).join("");
+  }
+
+  function buildGroups(rows) {
+    const groups = new Map();
+    for (const row of rows) {
+      const key = groupKey(row);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          platform: row.platform,
+          platform_product_id: row.platform_product_id,
+          product_name: row.product_name,
+          rows: []
+        });
+      }
+      groups.get(key).rows.push(row);
     }
+    return Array.from(groups.values());
+  }
+
+  function renderGroupedRows(rows) {
+    const html = [];
+    for (const group of buildGroups(rows)) {
+      const mapped = group.rows.filter((row) => row.mapping_status === "mapped").length;
+      const unmapped = group.rows.filter((row) => row.mapping_status === "unmapped").length;
+      const conflicts = group.rows.filter((row) => row.mapping_status === "conflict").length;
+      const collapsed = state.collapsedGroups.has(group.key);
+      const status = conflicts ? "conflict" : unmapped ? "unmapped" : "mapped";
+      html.push(`
+        <tr class="group-row">
+          <td><input class="group-check" type="checkbox" data-group-key="${escapeHtml(group.key)}"></td>
+          <td>${escapeHtml(group.platform)}</td>
+          <td>${escapeHtml(group.platform_product_id)}</td>
+          <td colspan="3">
+            <button class="group-toggle" data-group-key="${escapeHtml(group.key)}">${collapsed ? "펼치기" : "접기"}</button>
+            <strong>${escapeHtml(group.product_name)}</strong>
+            <span class="group-summary">옵션 ${group.rows.length}개 / 매핑 ${mapped} / 미매핑 ${unmapped} / 충돌 ${conflicts}</span>
+          </td>
+          <td></td>
+          <td></td>
+          <td><span class="status ${status}">${statusLabel(status)}</span></td>
+          <td><button class="select-unmapped-btn" data-group-key="${escapeHtml(group.key)}">미매핑 선택</button></td>
+        </tr>
+      `);
+      if (!collapsed) {
+        html.push(...group.rows.map((row) => optionRowHtml(row, "group-child-row", group.key)));
+      }
+    }
+    $('[data-role="rows"]').innerHTML = html.join("");
+    for (const group of buildGroups(rows)) syncGroupCheckbox(group.key);
+  }
+
+  function renderCurrentRows() {
+    if (state.viewMode === "group") renderGroupedRows(state.rows);
+    else renderRows(state.rows);
   }
 
   async function refresh() {
@@ -105,8 +174,9 @@ export function mount(root, { api, toast, escapeHtml }) {
       size: "50"
     });
     const data = await api(`/api/mapping/options?${params.toString()}`);
+    state.rows = data.items;
     renderKpis(data.kpis);
-    renderRows(data.items);
+    renderCurrentRows();
   }
 
   function getRowPayload(input) {
@@ -186,24 +256,20 @@ export function mount(root, { api, toast, escapeHtml }) {
     const dialog = $('[data-role="sku-dialog"]');
     const handle = dialog.querySelector("header");
     let drag = null;
-
     handle.addEventListener("pointerdown", (event) => {
       if (event.target.closest("button, input, select")) return;
       const rect = dialog.getBoundingClientRect();
       drag = { offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
       handle.setPointerCapture(event.pointerId);
     });
-
     handle.addEventListener("pointermove", (event) => {
       if (!drag) return;
       moveDialog(dialog, event.clientX - drag.offsetX, event.clientY - drag.offsetY);
     });
-
     handle.addEventListener("pointerup", (event) => {
       drag = null;
       if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
     });
-
     handle.addEventListener("pointercancel", () => {
       drag = null;
     });
@@ -218,21 +284,64 @@ export function mount(root, { api, toast, escapeHtml }) {
     await refresh();
   }
 
+  function syncGroupCheckbox(key) {
+    const groupCheckbox = root.querySelector(`.group-check[data-group-key="${CSS.escape(key)}"]`);
+    if (!groupCheckbox) return;
+    const checks = Array.from(root.querySelectorAll(`.row-check[data-group-key="${CSS.escape(key)}"]`));
+    const checked = checks.filter((checkbox) => checkbox.checked).length;
+    groupCheckbox.checked = checks.length > 0 && checked === checks.length;
+    groupCheckbox.indeterminate = checked > 0 && checked < checks.length;
+  }
+
+  function setGroupChecked(key, checked) {
+    root.querySelectorAll(`.row-check[data-group-key="${CSS.escape(key)}"]`).forEach((checkbox) => {
+      checkbox.checked = checked;
+    });
+    syncGroupCheckbox(key);
+  }
+
+  function selectGroupUnmapped(key) {
+    root.querySelectorAll(`.row-check[data-group-key="${CSS.escape(key)}"]`).forEach((checkbox) => {
+      const row = state.rows.find((item) => String(item.id) === String(checkbox.dataset.optionId));
+      checkbox.checked = row?.mapping_status === "unmapped";
+    });
+    syncGroupCheckbox(key);
+  }
+
   root.addEventListener("click", async (event) => {
     try {
       if (event.target.matches('[data-action="search"]')) await refresh();
       if (event.target.matches(".save-btn")) await saveInput(event.target.closest("tr").querySelector(".sku-input"));
       if (event.target.matches(".sku-search-btn")) await openSkuDialog(event.target.closest("tr").querySelector(".sku-input"));
       if (event.target.matches('[data-action="bulk-map"]')) await bulkMap();
+      if (event.target.matches(".group-toggle")) {
+        const key = event.target.dataset.groupKey;
+        if (state.collapsedGroups.has(key)) state.collapsedGroups.delete(key);
+        else state.collapsedGroups.add(key);
+        renderCurrentRows();
+      }
+      if (event.target.matches(".select-unmapped-btn")) selectGroupUnmapped(event.target.dataset.groupKey);
     } catch (error) {
       toast(error.message);
     }
   });
 
-  $('[data-action="select-all"]').addEventListener("change", (event) => {
-    root.querySelectorAll(".row-check").forEach((checkbox) => {
-      checkbox.checked = event.target.checked;
-    });
+  root.addEventListener("change", (event) => {
+    if (event.target.matches('[data-action="select-all"]')) {
+      root.querySelectorAll(".row-check").forEach((checkbox) => {
+        checkbox.checked = event.target.checked;
+      });
+      root.querySelectorAll(".group-check").forEach((checkbox) => {
+        checkbox.checked = event.target.checked;
+        checkbox.indeterminate = false;
+      });
+    }
+    if (event.target.matches('[data-role="view-mode"]')) {
+      state.viewMode = event.target.value;
+      renderCurrentRows();
+    }
+    if (event.target.matches(".group-check")) setGroupChecked(event.target.dataset.groupKey, event.target.checked);
+    if (event.target.matches(".row-check") && event.target.dataset.groupKey) syncGroupCheckbox(event.target.dataset.groupKey);
   });
 
   $('[data-role="sku-dialog-search"]').addEventListener("input", (event) => {
