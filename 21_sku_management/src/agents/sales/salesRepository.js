@@ -16,10 +16,14 @@ export class SalesRepository {
     const isMapped = item.mapping_status === "mapped" || Boolean(item.sku_code);
     const profitAmount = isMapped ? amount - costAmount - platformFeeAmount : 0;
     return {
+      is_mapped: isMapped,
       amount,
+      mapped_amount: isMapped ? amount : 0,
+      unmapped_amount: isMapped ? 0 : amount,
       cost_amount: costAmount,
       platform_fee_rate: feeRate,
       platform_fee_amount: platformFeeAmount,
+      mapped_platform_fee_amount: isMapped ? platformFeeAmount : 0,
       profit_amount: profitAmount,
       profit_rate: amount ? profitAmount / amount : 0
     };
@@ -70,15 +74,36 @@ export class SalesRepository {
     for (const row of rows) {
       const key = row[keyName] || "unmapped";
       const current =
-        grouped.get(key) || { key, quantity: 0, amount: 0, cost_amount: 0, platform_fee_amount: 0, profit_amount: 0, profit_rate: 0, item_count: 0 };
+        grouped.get(key) || {
+          key,
+          quantity: 0,
+          amount: 0,
+          mapped_amount: 0,
+          unmapped_amount: 0,
+          cost_amount: 0,
+          platform_fee_amount: 0,
+          total_platform_fee_amount: 0,
+          profit_amount: 0,
+          profit_rate: 0,
+          mapped_profit_rate: 0,
+          item_count: 0,
+          mapped_item_count: 0,
+          unmapped_item_count: 0
+        };
       const financials = this.calculateFinancials(row);
       current.quantity += row.quantity;
       current.amount += financials.amount;
+      current.mapped_amount += financials.mapped_amount;
+      current.unmapped_amount += financials.unmapped_amount;
       current.cost_amount += financials.cost_amount;
-      current.platform_fee_amount += financials.platform_fee_amount;
+      current.platform_fee_amount += financials.mapped_platform_fee_amount;
+      current.total_platform_fee_amount += financials.platform_fee_amount;
       current.profit_amount += financials.profit_amount;
       current.item_count += 1;
+      if (financials.is_mapped) current.mapped_item_count += 1;
+      else current.unmapped_item_count += 1;
       current.profit_rate = current.amount ? current.profit_amount / current.amount : 0;
+      current.mapped_profit_rate = current.mapped_amount ? current.profit_amount / current.mapped_amount : 0;
       grouped.set(key, current);
     }
     return Array.from(grouped.values());

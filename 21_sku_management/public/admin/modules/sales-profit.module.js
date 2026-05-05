@@ -5,10 +5,12 @@ export function mount(root, { api, toast, escapeHtml }) {
   root.innerHTML = `
     <section class="kpis" aria-label="매출/수익 KPI">
       <div class="kpi"><span>매출액</span><strong data-kpi="sales">0</strong></div>
+      <div class="kpi"><span>매핑매출</span><strong data-kpi="mapped-sales">0</strong></div>
       <div class="kpi"><span>원가</span><strong data-kpi="cost">0</strong></div>
-      <div class="kpi"><span>플랫폼 수수료</span><strong data-kpi="fee">0</strong></div>
+      <div class="kpi"><span>수수료</span><strong data-kpi="fee">0</strong></div>
       <div class="kpi"><span>수익금액</span><strong data-kpi="profit">0</strong></div>
-      <div class="kpi"><span>수익률</span><strong data-kpi="profit-rate">0%</strong></div>
+      <div class="kpi"><span>전체수익률</span><strong data-kpi="profit-rate">0%</strong></div>
+      <div class="kpi"><span>계산대상수익률</span><strong data-kpi="mapped-profit-rate">0%</strong></div>
     </section>
     <section class="filters">
       <input data-role="file-path" placeholder="플레이오토 매출 .xls 또는 .csv 경로" />
@@ -29,10 +31,13 @@ export function mount(root, { api, toast, escapeHtml }) {
                 <th>건수</th>
                 <th>수량</th>
                 <th>매출액</th>
+                <th>매핑매출</th>
+                <th>미매핑매출</th>
                 <th>원가</th>
                 <th>수수료</th>
                 <th>수익금액</th>
-                <th>수익률</th>
+                <th>전체수익률</th>
+                <th>계산대상수익률</th>
               </tr>
             </thead>
             <tbody data-role="summary-rows"></tbody>
@@ -126,17 +131,20 @@ export function mount(root, { api, toast, escapeHtml }) {
     const total = rows.reduce(
       (sum, row) => ({
         amount: sum.amount + Number(row.amount || 0),
+        mappedAmount: sum.mappedAmount + Number(row.mapped_amount || 0),
         cost: sum.cost + Number(row.cost_amount || 0),
         fee: sum.fee + Number(row.platform_fee_amount || 0),
         profit: sum.profit + Number(row.profit_amount || 0)
       }),
-      { amount: 0, cost: 0, fee: 0, profit: 0 }
+      { amount: 0, mappedAmount: 0, cost: 0, fee: 0, profit: 0 }
     );
     $('[data-kpi="sales"]').textContent = money(total.amount);
+    $('[data-kpi="mapped-sales"]').textContent = money(total.mappedAmount);
     $('[data-kpi="cost"]').textContent = money(total.cost);
     $('[data-kpi="fee"]').textContent = money(total.fee);
     $('[data-kpi="profit"]').textContent = money(total.profit);
     $('[data-kpi="profit-rate"]').textContent = percent(total.amount ? total.profit / total.amount : 0);
+    $('[data-kpi="mapped-profit-rate"]').textContent = percent(total.mappedAmount ? total.profit / total.mappedAmount : 0);
   }
 
   function renderSummary(rows) {
@@ -148,10 +156,13 @@ export function mount(root, { api, toast, escapeHtml }) {
             <td>${row.item_count}</td>
             <td>${row.quantity}</td>
             <td>${money(row.amount)}</td>
+            <td>${money(row.mapped_amount)}</td>
+            <td>${money(row.unmapped_amount)}</td>
             <td>${money(row.cost_amount)}</td>
             <td>${money(row.platform_fee_amount)}</td>
             <td>${money(row.profit_amount)}</td>
             <td><button type="button" data-action="show-details" data-key="${escapeHtml(row.key)}">${percent(row.profit_rate)}</button></td>
+            <td><button type="button" data-action="show-details" data-key="${escapeHtml(row.key)}">${percent(row.mapped_profit_rate)}</button></td>
           </tr>
         `
       )

@@ -92,4 +92,63 @@ test("platform fee rules reduce mapped sales profit", async () => {
   assert.equal(summary.platform_fee_amount, 100);
   assert.equal(summary.profit_amount, 900);
   assert.equal(summary.profit_rate, 0.9);
+  assert.equal(summary.mapped_profit_rate, 0.9);
+});
+
+test("sales summary separates total and mapped profit rates", () => {
+  const db = createTestDb();
+  const salesRepository = new SalesRepository(db);
+  const timestamp = new Date().toISOString();
+  db.data.sales_orders.push({
+    id: 201,
+    platform: "smartstore",
+    order_id: "ORDER-MIXED",
+    ordered_at: timestamp.slice(0, 10),
+    buyer_name: "",
+    total_amount: 2000,
+    created_at: timestamp,
+    updated_at: timestamp
+  });
+  db.data.sales_order_items.push(
+    {
+      id: 201,
+      sales_order_id: 201,
+      platform: "smartstore",
+      order_id: "ORDER-MIXED-1",
+      option_id: "OPT-RED-500",
+      product_option_id: 1,
+      sku_code: "EC-TUMBLER-RED-500",
+      quantity: 1,
+      amount: 1000,
+      gross_sales_amount: 1000,
+      cost_amount: 600,
+      mapping_status: "mapped",
+      created_at: timestamp
+    },
+    {
+      id: 202,
+      sales_order_id: 201,
+      platform: "smartstore",
+      order_id: "ORDER-MIXED-2",
+      option_id: "UNKNOWN",
+      product_option_id: null,
+      sku_code: null,
+      quantity: 1,
+      amount: 1000,
+      gross_sales_amount: 1000,
+      cost_amount: 0,
+      mapping_status: "mapping_failed",
+      mapping_reason: "mapping_not_found",
+      created_at: timestamp
+    }
+  );
+
+  const [summary] = salesRepository.summary({ groupBy: "platform" });
+
+  assert.equal(summary.amount, 2000);
+  assert.equal(summary.mapped_amount, 1000);
+  assert.equal(summary.unmapped_amount, 1000);
+  assert.equal(summary.profit_amount, 400);
+  assert.equal(summary.profit_rate, 0.2);
+  assert.equal(summary.mapped_profit_rate, 0.4);
 });
