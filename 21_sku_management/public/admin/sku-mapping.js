@@ -116,7 +116,7 @@ async function renderSkuResults(q) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "sku-result";
-    button.innerHTML = `<strong>${sku.sku_code}</strong><span>${sku.sku_name}</span>`;
+    button.innerHTML = `<strong>${sku.sku_code}</strong><span>${sku.sku_name} / 입고 ${sku.purchase_price || 0} / 출고 ${sku.sale_price || 0}</span>`;
     button.addEventListener("click", () => {
       if (state.activeSkuInput) state.activeSkuInput.value = sku.sku_code;
       $("#skuDialog").close();

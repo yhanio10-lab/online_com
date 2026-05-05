@@ -16,6 +16,7 @@ export function createSeedData() {
       product_options: 4,
       sku_mappings: 1,
       mapping_histories: 1,
+      sku_price_histories: 0,
       sales_orders: 1,
       sales_order_items: 1,
       inventory_snapshots: 3,
@@ -32,11 +33,12 @@ export function createSeedData() {
       { id: 4, platform: "openmarket", product_id: 2, option_id: "POUCH-L", option_name: "대형", status: "active", created_at: createdAt, updated_at: createdAt }
     ],
     sku_master: [
-      { sku_code: "EC-TUMBLER-RED-500", sku_name: "데일리 텀블러 레드 500ml", is_active: true, created_at: createdAt, updated_at: createdAt },
-      { sku_code: "EC-TUMBLER-BLK-500", sku_name: "데일리 텀블러 블랙 500ml", is_active: true, created_at: createdAt, updated_at: createdAt },
-      { sku_code: "EC-POUCH-S", sku_name: "코튼 파우치 소형", is_active: true, created_at: createdAt, updated_at: createdAt },
-      { sku_code: "EC-POUCH-L-OLD", sku_name: "코튼 파우치 대형 구형", is_active: false, created_at: createdAt, updated_at: createdAt }
+      createSeedSku("EC-TUMBLER-RED-500", "데일리 텀블러 레드 500ml", true, createdAt),
+      createSeedSku("EC-TUMBLER-BLK-500", "데일리 텀블러 블랙 500ml", true, createdAt),
+      createSeedSku("EC-POUCH-S", "코튼 파우치 소형", true, createdAt),
+      createSeedSku("EC-POUCH-L-OLD", "코튼 파우치 대형 구형", false, createdAt)
     ],
+    sku_price_histories: [],
     sku_mappings: [
       { id: 1, platform: "smartstore", product_option_id: 1, sku_code: "EC-TUMBLER-RED-500", mapping_status: "active", created_by: "seed", created_at: createdAt, updated_at: createdAt }
     ],
@@ -54,6 +56,27 @@ export function createSeedData() {
   };
 }
 
+function createSeedSku(skuCode, skuName, isActive, createdAt) {
+  return {
+    sku_code: skuCode,
+    sku_name: skuName,
+    spec: "",
+    unit: "",
+    barcode: "",
+    purchase_price: 0,
+    purchase_price_vat_included: false,
+    sale_price: 0,
+    sale_price_vat_included: false,
+    item_type: "",
+    inventory_managed: false,
+    location: "",
+    is_active: isActive,
+    price_updated_at: createdAt,
+    created_at: createdAt,
+    updated_at: createdAt
+  };
+}
+
 export class JsonDatabase {
   constructor(filePath = DEFAULT_DB_PATH, initialData = null) {
     this.filePath = filePath;
@@ -64,6 +87,7 @@ export class JsonDatabase {
     if (this.data) return this;
     try {
       this.data = JSON.parse(await readFile(this.filePath, "utf8"));
+      this.normalize();
     } catch {
       this.data = createSeedData();
       await this.save();
@@ -80,5 +104,27 @@ export class JsonDatabase {
   nextId(table) {
     this.data.sequences[table] = (this.data.sequences[table] || 0) + 1;
     return this.data.sequences[table];
+  }
+
+  normalize() {
+    if (!this.data.sequences) this.data.sequences = {};
+    if (!Array.isArray(this.data.sku_price_histories)) this.data.sku_price_histories = [];
+    if (!this.data.sequences.sku_price_histories) {
+      this.data.sequences.sku_price_histories = this.data.sku_price_histories.reduce((max, item) => Math.max(max, item.id || 0), 0);
+    }
+    const timestamp = new Date().toISOString();
+    for (const sku of this.data.sku_master || []) {
+      sku.spec ??= "";
+      sku.unit ??= "";
+      sku.barcode ??= "";
+      sku.purchase_price ??= 0;
+      sku.purchase_price_vat_included ??= false;
+      sku.sale_price ??= 0;
+      sku.sale_price_vat_included ??= false;
+      sku.item_type ??= "";
+      sku.inventory_managed ??= false;
+      sku.location ??= "";
+      sku.price_updated_at ??= timestamp;
+    }
   }
 }

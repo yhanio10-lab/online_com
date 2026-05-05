@@ -4,6 +4,7 @@ import path from "node:path";
 import { JsonDatabase } from "./db/jsonDatabase.js";
 import { SkuMappingRepository } from "./agents/sku-mapping/skuMappingRepository.js";
 import { SkuMappingService } from "./agents/sku-mapping/skuMappingService.js";
+import { EcountSkuImportService } from "./agents/sku-mapping/ecountSkuImportService.js";
 import { SalesRepository } from "./agents/sales/salesRepository.js";
 import { SalesService } from "./agents/sales/salesService.js";
 import { InventoryRepository } from "./agents/inventory/inventoryRepository.js";
@@ -56,6 +57,7 @@ export async function createApp({ db = new JsonDatabase() } = {}) {
   await db.load();
   const mappingRepository = new SkuMappingRepository(db);
   const mappingService = new SkuMappingService(mappingRepository, db);
+  const ecountSkuImportService = new EcountSkuImportService(db);
   const salesService = new SalesService(new SalesRepository(db), mappingRepository);
   const inventoryService = new InventoryService(new InventoryRepository(db));
 
@@ -69,6 +71,14 @@ export async function createApp({ db = new JsonDatabase() } = {}) {
       }
       if (req.method === "GET" && url.pathname === "/api/sku/search") {
         return sendJson(res, 200, { ok: true, data: mappingService.searchSku(query.q || "") });
+      }
+      if (req.method === "POST" && url.pathname === "/api/sku/import/ecount") {
+        const body = await readBody(req);
+        const filePath = body.file_path || "./이카운트_품목.xlsx";
+        return sendJson(res, 200, {
+          ok: true,
+          data: await ecountSkuImportService.importFile(filePath, { changedBy: body.changed_by || "api" })
+        });
       }
       if (req.method === "GET" && url.pathname === "/api/mapping/conflicts") {
         return sendJson(res, 200, { ok: true, data: mappingService.conflicts() });

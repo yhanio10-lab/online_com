@@ -24,9 +24,32 @@ CREATE TABLE IF NOT EXISTS product_options (
 CREATE TABLE IF NOT EXISTS sku_master (
   sku_code TEXT PRIMARY KEY,
   sku_name TEXT NOT NULL,
+  spec TEXT,
+  unit TEXT,
+  barcode TEXT,
+  purchase_price REAL NOT NULL DEFAULT 0,
+  purchase_price_vat_included INTEGER NOT NULL DEFAULT 0,
+  sale_price REAL NOT NULL DEFAULT 0,
+  sale_price_vat_included INTEGER NOT NULL DEFAULT 0,
+  item_type TEXT,
+  inventory_managed INTEGER NOT NULL DEFAULT 0,
+  location TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
+  price_updated_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sku_price_histories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sku_code TEXT NOT NULL REFERENCES sku_master(sku_code),
+  old_purchase_price REAL,
+  new_purchase_price REAL,
+  old_sale_price REAL,
+  new_sale_price REAL,
+  changed_by TEXT NOT NULL,
+  changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reason TEXT
 );
 
 CREATE TABLE IF NOT EXISTS sku_mappings (
@@ -101,6 +124,8 @@ CREATE INDEX IF NOT EXISTS idx_sku_mappings_platform_option
   ON sku_mappings(platform, product_option_id);
 CREATE INDEX IF NOT EXISTS idx_sku_mappings_sku_code
   ON sku_mappings(sku_code);
+CREATE INDEX IF NOT EXISTS idx_sku_price_histories_sku_code
+  ON sku_price_histories(sku_code);
 CREATE INDEX IF NOT EXISTS idx_sales_items_sku_code
   ON sales_order_items(sku_code);
 CREATE INDEX IF NOT EXISTS idx_inventory_snapshots_sku_at

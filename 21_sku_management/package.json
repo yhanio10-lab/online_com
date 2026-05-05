@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
+    "import:ecount": "node scripts/import-ecount-items.js",
     "test": "node tests/run-tests.js"
   },
   "engines": {
