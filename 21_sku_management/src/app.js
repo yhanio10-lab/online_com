@@ -6,6 +6,8 @@ import { SkuMappingRepository } from "./agents/sku-mapping/skuMappingRepository.
 import { SkuMappingService } from "./agents/sku-mapping/skuMappingService.js";
 import { EcountSkuImportService } from "./agents/sku-mapping/ecountSkuImportService.js";
 import { SmartstoreProductImportService } from "./agents/platform-sync/smartstoreProductImportService.js";
+import { SkuBundleRepository } from "./agents/sku-bundles/skuBundleRepository.js";
+import { SkuBundleService } from "./agents/sku-bundles/skuBundleService.js";
 import { SalesRepository } from "./agents/sales/salesRepository.js";
 import { SalesService } from "./agents/sales/salesService.js";
 import { InventoryRepository } from "./agents/inventory/inventoryRepository.js";
@@ -35,7 +37,7 @@ async function readBody(req) {
 
 async function serveStatic(req, res) {
   const url = new URL(req.url, "http://localhost");
-  const requestPath = url.pathname === "/" ? "/admin/sku-mapping.html" : url.pathname;
+  const requestPath = url.pathname === "/" || url.pathname === "/admin" ? "/admin/index.html" : url.pathname;
   const filePath = path.resolve(PUBLIC_DIR, `.${requestPath}`);
   if (!filePath.startsWith(PUBLIC_DIR)) return false;
   try {
@@ -45,7 +47,9 @@ async function serveStatic(req, res) {
       ? "text/html; charset=utf-8"
       : filePath.endsWith(".css")
         ? "text/css; charset=utf-8"
-        : "application/javascript; charset=utf-8";
+        : filePath.endsWith(".json")
+          ? "application/json; charset=utf-8"
+          : "application/javascript; charset=utf-8";
     res.writeHead(200, { "content-type": contentType });
     createReadStream(filePath).pipe(res);
     return true;
@@ -62,6 +66,7 @@ export async function createApp({ db = new JsonDatabase() } = {}) {
   const smartstoreProductImportService = new SmartstoreProductImportService(db);
   const salesService = new SalesService(new SalesRepository(db), mappingRepository);
   const inventoryService = new InventoryService(new InventoryRepository(db));
+  const bundleService = new SkuBundleService(new SkuBundleRepository(db), db);
 
   return async function app(req, res) {
     try {
@@ -89,6 +94,37 @@ export async function createApp({ db = new JsonDatabase() } = {}) {
       }
       if (req.method === "GET" && url.pathname === "/api/mapping/conflicts") {
         return sendJson(res, 200, { ok: true, data: mappingService.conflicts() });
+      }
+      if (req.method === "GET" && url.pathname === "/api/bundles") {
+        return sendJson(res, 200, { ok: true, data: bundleService.list(query) });
+      }
+      const bundleAvailability = parsePathname("/api/bundles/:skuCode/availability", url.pathname);
+      if (bundleAvailability && req.method === "GET") {
+        return sendJson(res, 200, { ok: true, data: bundleService.availability(decodeURIComponent(bundleAvailability.skuCode), inventoryService) });
+      }
+      const bundleComponent = parsePathname("/api/bundles/:skuCode/components/:componentId", url.pathname);
+      if (bundleComponent && req.method === "PUT") {
+        return sendJson(res, 200, {
+          ok: true,
+          data: await bundleService.updateComponent(decodeURIComponent(bundleComponent.skuCode), bundleComponent.componentId, await readBody(req))
+        });
+      }
+      if (bundleComponent && req.method === "DELETE") {
+        return sendJson(res, 200, {
+          ok: true,
+          data: await bundleService.deleteComponent(decodeURIComponent(bundleComponent.skuCode), bundleComponent.componentId)
+        });
+      }
+      const bundleComponents = parsePathname("/api/bundles/:skuCode/components", url.pathname);
+      if (bundleComponents && req.method === "POST") {
+        return sendJson(res, 201, {
+          ok: true,
+          data: await bundleService.addComponent(decodeURIComponent(bundleComponents.skuCode), await readBody(req))
+        });
+      }
+      const bundleDetail = parsePathname("/api/bundles/:skuCode", url.pathname);
+      if (bundleDetail && req.method === "GET") {
+        return sendJson(res, 200, { ok: true, data: bundleService.detail(decodeURIComponent(bundleDetail.skuCode)) });
       }
       if (req.method === "POST" && url.pathname === "/api/mapping") {
         return sendJson(res, 201, { ok: true, data: await mappingService.createMapping(await readBody(req)) });

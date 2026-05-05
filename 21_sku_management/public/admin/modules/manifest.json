@@ -1,0 +1,14 @@
+[
+  {
+    "id": "sku-mapping",
+    "label": "SKU 매핑",
+    "description": "플랫폼 옵션을 이카운트 품번코드에 연결합니다.",
+    "module": "/admin/modules/sku-mapping.module.js"
+  },
+  {
+    "id": "sku-bundles",
+    "label": "세트/번들",
+    "description": "세트 SKU의 구성품과 구성 수량을 관리합니다.",
+    "module": "/admin/modules/sku-bundles.module.js"
+  }
+]
