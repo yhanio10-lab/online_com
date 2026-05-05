@@ -110,7 +110,8 @@ export function mount(root, { api, toast, escapeHtml }) {
   }
 
   async function refresh() {
-    const params = new URLSearchParams({ q: $('[data-role="bundle-search"]').value, page: "1", size: "50" });
+    const searchInput = $('[data-role="bundle-search"]');
+    const params = new URLSearchParams({ q: searchInput?.value || "", page: "1", size: "50" });
     const data = await api(`/api/bundles?${params.toString()}`);
     renderKpis(data.kpis);
     renderBundles(data.items);
@@ -129,14 +130,16 @@ export function mount(root, { api, toast, escapeHtml }) {
 
   async function addComponent() {
     if (!state.selectedSkuCode) throw new Error("먼저 세트 SKU를 선택하세요.");
-    const componentSkuCode = $('[data-role="component-sku"]').value.trim();
-    const quantity = Number($('[data-role="component-qty"]').value || 1);
+    const componentSkuInput = $('[data-role="component-sku"]');
+    const componentQtyInput = $('[data-role="component-qty"]');
+    const componentSkuCode = (componentSkuInput?.value || "").trim();
+    const quantity = Number(componentQtyInput?.value || 1);
     const detail = await api(`/api/bundles/${encodeURIComponent(state.selectedSkuCode)}/components`, {
       method: "POST",
       body: JSON.stringify({ component_sku_code: componentSkuCode, component_quantity: quantity })
     });
-    $('[data-role="component-sku"]').value = "";
-    $('[data-role="component-qty"]').value = "1";
+    if (componentSkuInput) componentSkuInput.value = "";
+    if (componentQtyInput) componentQtyInput.value = "1";
     renderDetail(detail);
     await refresh();
     toast("구성품을 저장했습니다.");
@@ -144,6 +147,7 @@ export function mount(root, { api, toast, escapeHtml }) {
 
   async function saveComponent(componentId) {
     const input = root.querySelector(`.component-qty[data-component-id="${componentId}"]`);
+    if (!input) throw new Error("Component quantity input was not found");
     const detail = await api(`/api/bundles/${encodeURIComponent(state.selectedSkuCode)}/components/${componentId}`, {
       method: "PUT",
       body: JSON.stringify({ component_quantity: Number(input.value || 1), is_active: true })

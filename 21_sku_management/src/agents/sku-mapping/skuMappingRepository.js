@@ -4,6 +4,19 @@ function textIncludes(value, q) {
   return String(value || "").toLowerCase().includes(String(q || "").toLowerCase());
 }
 
+function tokenizeSearch(q) {
+  return String(q || "")
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function fieldsMatchAllTokens(fields, tokens) {
+  if (!tokens.length) return true;
+  return tokens.every((token) => fields.some((value) => textIncludes(value, token)));
+}
+
 export class SkuMappingRepository {
   constructor(db) {
     this.db = db;
@@ -56,12 +69,11 @@ export class SkuMappingRepository {
   }
 
   searchSku(q, size = 200) {
-    const term = String(q || "").trim().toLowerCase();
+    const tokens = tokenizeSearch(q);
     const limit = Math.min(500, Math.max(1, Number(size || 200)));
     return this.db.data.sku_master
       .filter((sku) => {
-        if (!term) return true;
-        return [sku.sku_code, sku.sku_name, sku.spec, sku.barcode].some((value) => textIncludes(value, term));
+        return fieldsMatchAllTokens([sku.sku_code, sku.sku_name, sku.spec, sku.barcode], tokens);
       })
       .slice(0, limit);
   }
