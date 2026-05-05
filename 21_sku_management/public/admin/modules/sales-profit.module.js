@@ -3,6 +3,7 @@ export function mount(root, { api, toast, escapeHtml }) {
     <section class="kpis" aria-label="매출/수익 KPI">
       <div class="kpi"><span>매출액</span><strong data-kpi="sales">0</strong></div>
       <div class="kpi"><span>원가</span><strong data-kpi="cost">0</strong></div>
+      <div class="kpi"><span>플랫폼 수수료</span><strong data-kpi="fee">0</strong></div>
       <div class="kpi"><span>수익금액</span><strong data-kpi="profit">0</strong></div>
       <div class="kpi"><span>수익률</span><strong data-kpi="profit-rate">0%</strong></div>
     </section>
@@ -16,21 +17,41 @@ export function mount(root, { api, toast, escapeHtml }) {
       <button data-action="refresh">조회</button>
     </section>
     <section class="split">
-      <div class="table-shell">
-        <table>
-          <thead>
-            <tr>
-              <th>구분</th>
-              <th>건수</th>
-              <th>수량</th>
-              <th>매출액</th>
-              <th>원가</th>
-              <th>수익금액</th>
-              <th>수익률</th>
-            </tr>
-          </thead>
-          <tbody data-role="summary-rows"></tbody>
-        </table>
+      <div>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>구분</th>
+                <th>건수</th>
+                <th>수량</th>
+                <th>매출액</th>
+                <th>원가</th>
+                <th>수수료</th>
+                <th>수익금액</th>
+                <th>수익률</th>
+              </tr>
+            </thead>
+            <tbody data-role="summary-rows"></tbody>
+          </table>
+        </div>
+        <section class="panel" style="margin-top: 14px;">
+          <h2>플랫폼 수수료</h2>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>플랫폼</th>
+                  <th>수수료율(%)</th>
+                </tr>
+              </thead>
+              <tbody data-role="fee-rows"></tbody>
+            </table>
+          </div>
+          <div class="toolbar" style="margin-top: 10px;">
+            <button data-action="save-fees">수수료 저장</button>
+          </div>
+        </section>
       </div>
       <aside class="panel">
         <h2>상세내역</h2>
@@ -49,17 +70,18 @@ export function mount(root, { api, toast, escapeHtml }) {
                 <th>수량</th>
                 <th>매출액</th>
                 <th>원가</th>
+                <th>수수료</th>
                 <th>수익</th>
                 <th>수익률</th>
                 <th>상태</th>
               </tr>
             </thead>
             <tbody data-role="detail-rows">
-              <tr><td colspan="13" class="muted">선택된 항목이 없습니다.</td></tr>
+              <tr><td colspan="14" class="muted">선택된 항목이 없습니다.</td></tr>
             </tbody>
           </table>
         </div>
-        <h2>최근 임포트</h2>
+        <h2 style="margin-top: 18px;">최근 임포트</h2>
         <div data-role="import-list" class="muted"></div>
         <h2 style="margin-top: 18px;">매핑 실패</h2>
         <div class="table-shell">
@@ -95,12 +117,14 @@ export function mount(root, { api, toast, escapeHtml }) {
       (sum, row) => ({
         amount: sum.amount + Number(row.amount || 0),
         cost: sum.cost + Number(row.cost_amount || 0),
+        fee: sum.fee + Number(row.platform_fee_amount || 0),
         profit: sum.profit + Number(row.profit_amount || 0)
       }),
-      { amount: 0, cost: 0, profit: 0 }
+      { amount: 0, cost: 0, fee: 0, profit: 0 }
     );
     $('[data-kpi="sales"]').textContent = money(total.amount);
     $('[data-kpi="cost"]').textContent = money(total.cost);
+    $('[data-kpi="fee"]').textContent = money(total.fee);
     $('[data-kpi="profit"]').textContent = money(total.profit);
     $('[data-kpi="profit-rate"]').textContent = percent(total.amount ? total.profit / total.amount : 0);
   }
@@ -115,8 +139,33 @@ export function mount(root, { api, toast, escapeHtml }) {
             <td>${row.quantity}</td>
             <td>${money(row.amount)}</td>
             <td>${money(row.cost_amount)}</td>
+            <td>${money(row.platform_fee_amount)}</td>
             <td>${money(row.profit_amount)}</td>
             <td><button type="button" data-action="show-details" data-key="${escapeHtml(row.key)}">${percent(row.profit_rate)}</button></td>
+          </tr>
+        `
+      )
+      .join("");
+  }
+
+  function renderFees(rows) {
+    $('[data-role="fee-rows"]').innerHTML = rows
+      .map(
+        (row) => `
+          <tr>
+            <td>${escapeHtml(row.platform)}</td>
+            <td>
+              <input
+                data-role="fee-rate"
+                data-platform="${escapeHtml(row.platform)}"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value="${Number(row.fee_rate || 0) * 100}"
+                aria-label="${escapeHtml(row.platform)} 수수료율"
+              />
+            </td>
           </tr>
         `
       )
@@ -140,6 +189,7 @@ export function mount(root, { api, toast, escapeHtml }) {
                 <td>${row.quantity}</td>
                 <td>${money(row.amount)}</td>
                 <td>${money(row.cost_amount)}</td>
+                <td>${money(row.platform_fee_amount)}</td>
                 <td>${money(row.profit_amount)}</td>
                 <td>${percent(row.profit_rate)}</td>
                 <td>${escapeHtml(row.mapping_status)}${row.mapping_reason ? ` / ${escapeHtml(row.mapping_reason)}` : ""}</td>
@@ -147,7 +197,7 @@ export function mount(root, { api, toast, escapeHtml }) {
             `
           )
           .join("")
-      : `<tr><td colspan="13" class="muted">상세내역이 없습니다.</td></tr>`;
+      : `<tr><td colspan="14" class="muted">상세내역이 없습니다.</td></tr>`;
   }
 
   function renderImports(rows) {
@@ -180,21 +230,36 @@ export function mount(root, { api, toast, escapeHtml }) {
 
   async function refresh() {
     const groupBy = $('[data-role="group-by"]').value;
-    const [summary, imports, failures] = await Promise.all([
+    const [summary, imports, failures, fees] = await Promise.all([
       api(`/api/sales/summary?groupBy=${encodeURIComponent(groupBy)}`),
       api("/api/sales/imports"),
-      api("/api/sales/mapping-failures?limit=30")
+      api("/api/sales/mapping-failures?limit=30"),
+      api("/api/sales/platform-fees")
     ]);
     renderKpis(summary);
     renderSummary(summary);
     renderImports(imports);
     renderFailures(failures);
+    renderFees(fees);
   }
 
   async function loadDetails(key) {
     const groupBy = $('[data-role="group-by"]').value;
     const rows = await api(`/api/sales/details?groupBy=${encodeURIComponent(groupBy)}&key=${encodeURIComponent(key)}&limit=200`);
     renderDetails(`${groupBy === "platform" ? "플랫폼" : "SKU"}: ${key} / ${rows.length}건`, rows);
+  }
+
+  async function saveFees() {
+    const fees = [...root.querySelectorAll('[data-role="fee-rate"]')].map((input) => ({
+      platform: input.dataset.platform,
+      fee_rate: Number(input.value || 0) / 100
+    }));
+    await api("/api/sales/platform-fees", {
+      method: "PUT",
+      body: JSON.stringify({ fees })
+    });
+    toast("플랫폼 수수료를 저장했습니다.");
+    await refresh();
   }
 
   async function importPlayauto() {
@@ -204,13 +269,14 @@ export function mount(root, { api, toast, escapeHtml }) {
       method: "POST",
       body: JSON.stringify({ file_path: filePath })
     });
-    toast(`플레이오토 임포트 완료: ${summary.imported_rows}건, 매핑 ${summary.mapped_rows}건, 실패 ${summary.failed_rows}건`);
+    toast(`플레이오토 임포트 완료: ${summary.imported_rows}건 / 매핑 ${summary.mapped_rows}건 / 실패 ${summary.failed_rows}건`);
     await refresh();
   }
 
   root.addEventListener("click", async (event) => {
     try {
       if (event.target.matches('[data-action="refresh"]')) await refresh();
+      if (event.target.matches('[data-action="save-fees"]')) await saveFees();
       if (event.target.matches('[data-action="import-playauto"]')) await importPlayauto();
       if (event.target.matches('[data-action="show-details"]')) await loadDetails(event.target.dataset.key || "");
     } catch (error) {

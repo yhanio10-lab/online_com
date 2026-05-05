@@ -50,6 +50,14 @@ export class SalesService {
     });
   }
 
+  platformFees() {
+    return this.salesRepository.platformFees();
+  }
+
+  async savePlatformFees(body = {}) {
+    return this.salesRepository.savePlatformFees(body.fees || []);
+  }
+
   importBatches() {
     return this.salesRepository.importBatches();
   }

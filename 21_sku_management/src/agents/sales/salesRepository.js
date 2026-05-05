@@ -3,6 +3,28 @@ export class SalesRepository {
     this.db = db;
   }
 
+  platformFeeRate(platform) {
+    const rule = (this.db.data.platform_fee_rules || []).find((item) => item.platform === platform && item.is_active !== false);
+    return Number(rule?.fee_rate || 0);
+  }
+
+  calculateFinancials(item) {
+    const amount = Number(item.gross_sales_amount ?? item.amount ?? 0);
+    const costAmount = Number(item.cost_amount || 0);
+    const feeRate = this.platformFeeRate(item.platform);
+    const platformFeeAmount = Math.round(amount * feeRate * 100) / 100;
+    const isMapped = item.mapping_status === "mapped" || Boolean(item.sku_code);
+    const profitAmount = isMapped ? amount - costAmount - platformFeeAmount : 0;
+    return {
+      amount,
+      cost_amount: costAmount,
+      platform_fee_rate: feeRate,
+      platform_fee_amount: platformFeeAmount,
+      profit_amount: profitAmount,
+      profit_rate: amount ? profitAmount / amount : 0
+    };
+  }
+
   saveOrder(order, items) {
     const timestamp = new Date().toISOString();
     const savedOrder = {
@@ -47,11 +69,14 @@ export class SalesRepository {
     const grouped = new Map();
     for (const row of rows) {
       const key = row[keyName] || "unmapped";
-      const current = grouped.get(key) || { key, quantity: 0, amount: 0, cost_amount: 0, profit_amount: 0, profit_rate: 0, item_count: 0 };
+      const current =
+        grouped.get(key) || { key, quantity: 0, amount: 0, cost_amount: 0, platform_fee_amount: 0, profit_amount: 0, profit_rate: 0, item_count: 0 };
+      const financials = this.calculateFinancials(row);
       current.quantity += row.quantity;
-      current.amount += Number(row.gross_sales_amount ?? row.amount ?? 0);
-      current.cost_amount += Number(row.cost_amount || 0);
-      current.profit_amount += Number(row.profit_amount || 0);
+      current.amount += financials.amount;
+      current.cost_amount += financials.cost_amount;
+      current.platform_fee_amount += financials.platform_fee_amount;
+      current.profit_amount += financials.profit_amount;
       current.item_count += 1;
       current.profit_rate = current.amount ? current.profit_amount / current.amount : 0;
       grouped.set(key, current);
@@ -75,6 +100,7 @@ export class SalesRepository {
       .reverse()
       .map((item) => {
         const order = ordersById.get(item.sales_order_id);
+        const financials = this.calculateFinancials(item);
         return {
           id: item.id,
           ordered_at: order?.ordered_at || "",
@@ -85,14 +111,69 @@ export class SalesRepository {
           option_name: item.option_name || "",
           sku_code: item.sku_code || "",
           quantity: Number(item.quantity || 0),
-          amount: Number(item.gross_sales_amount ?? item.amount ?? 0),
-          cost_amount: Number(item.cost_amount || 0),
-          profit_amount: Number(item.profit_amount || 0),
-          profit_rate: Number(item.profit_rate || 0),
+          amount: financials.amount,
+          cost_amount: financials.cost_amount,
+          platform_fee_rate: financials.platform_fee_rate,
+          platform_fee_amount: financials.platform_fee_amount,
+          profit_amount: financials.profit_amount,
+          profit_rate: financials.profit_rate,
           mapping_status: item.mapping_status || "",
           mapping_reason: item.mapping_reason || ""
         };
       });
+  }
+
+  platformFees() {
+    const platforms = new Set([
+      ...(this.db.data.products || []).map((item) => item.platform),
+      ...(this.db.data.sales_order_items || []).map((item) => item.platform),
+      ...(this.db.data.platform_fee_rules || []).map((item) => item.platform)
+    ]);
+    return [...platforms]
+      .filter(Boolean)
+      .sort()
+      .map((platform) => {
+        const rule = (this.db.data.platform_fee_rules || []).find((item) => item.platform === platform);
+        return {
+          id: rule?.id || null,
+          platform,
+          fee_rate: Number(rule?.fee_rate || 0),
+          is_active: rule?.is_active !== false
+        };
+      });
+  }
+
+  async savePlatformFees(rows) {
+    const timestamp = new Date().toISOString();
+    for (const row of rows || []) {
+      const platform = String(row.platform || "").trim();
+      if (!platform) continue;
+      const feeRate = Number(row.fee_rate || 0);
+      if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate > 1) {
+        const error = new Error("수수료율은 0% 이상 100% 이하로 입력해야 합니다.");
+        error.status = 400;
+        error.code = "INVALID_PLATFORM_FEE_RATE";
+        throw error;
+      }
+      let rule = (this.db.data.platform_fee_rules || []).find((item) => item.platform === platform);
+      if (!rule) {
+        rule = {
+          id: this.db.nextId("platform_fee_rules"),
+          platform,
+          fee_rate: feeRate,
+          is_active: true,
+          created_at: timestamp,
+          updated_at: timestamp
+        };
+        this.db.data.platform_fee_rules.push(rule);
+      } else {
+        rule.fee_rate = feeRate;
+        rule.is_active = row.is_active !== false;
+        rule.updated_at = timestamp;
+      }
+    }
+    await this.db.save();
+    return this.platformFees();
   }
 
   importBatches() {

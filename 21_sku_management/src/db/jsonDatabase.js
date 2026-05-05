@@ -19,6 +19,7 @@ export function createSeedData() {
       sku_price_histories: 0,
       sku_bundle_components: 0,
       sales_import_batches: 0,
+      platform_fee_rules: 0,
       sales_orders: 1,
       sales_order_items: 1,
       inventory_snapshots: 3,
@@ -49,6 +50,7 @@ export function createSeedData() {
       { id: 1, mapping_id: 1, old_sku_code: null, new_sku_code: "EC-TUMBLER-RED-500", changed_by: "seed", changed_at: createdAt, reason: "seed" }
     ],
     sales_import_batches: [],
+    platform_fee_rules: [],
     sales_orders: [],
     sales_order_items: [],
     inventory_snapshots: [
@@ -150,6 +152,7 @@ export class JsonDatabase {
     if (!Array.isArray(this.data.sku_price_histories)) this.data.sku_price_histories = [];
     if (!Array.isArray(this.data.sku_bundle_components)) this.data.sku_bundle_components = [];
     if (!Array.isArray(this.data.sales_import_batches)) this.data.sales_import_batches = [];
+    if (!Array.isArray(this.data.platform_fee_rules)) this.data.platform_fee_rules = [];
     if (!this.data.sequences.sku_price_histories) {
       this.data.sequences.sku_price_histories = this.data.sku_price_histories.reduce((max, item) => Math.max(max, item.id || 0), 0);
     }
@@ -158,6 +161,9 @@ export class JsonDatabase {
     }
     if (!this.data.sequences.sales_import_batches) {
       this.data.sequences.sales_import_batches = this.data.sales_import_batches.reduce((max, item) => Math.max(max, item.id || 0), 0);
+    }
+    if (!this.data.sequences.platform_fee_rules) {
+      this.data.sequences.platform_fee_rules = this.data.platform_fee_rules.reduce((max, item) => Math.max(max, item.id || 0), 0);
     }
     const timestamp = new Date().toISOString();
     for (const product of this.data.products || []) {

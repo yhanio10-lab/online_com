@@ -39,3 +39,17 @@ test("sales details returns rows for a clicked summary key", async () => {
   assert.equal(details[0].amount, 1000);
   assert.equal(details[0].profit_rate, 1);
 });
+
+test("platform fee rules reduce mapped sales profit", async () => {
+  const db = createTestDb();
+  const salesRepository = new SalesRepository(db);
+  const service = new PlayautoSalesImportService(db, new SkuMappingRepository(db));
+
+  await service.importCsvText(sampleCsv(), "fee-test.csv");
+  await salesRepository.savePlatformFees([{ platform: "smartstore", fee_rate: 0.1 }]);
+  const [summary] = salesRepository.summary({ groupBy: "platform" });
+
+  assert.equal(summary.platform_fee_amount, 100);
+  assert.equal(summary.profit_amount, 900);
+  assert.equal(summary.profit_rate, 0.9);
+});
