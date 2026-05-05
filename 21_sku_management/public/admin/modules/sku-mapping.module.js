@@ -1,5 +1,5 @@
 export function mount(root, { api, toast, escapeHtml }) {
-  const state = { activeSkuInput: null, searchTimer: null };
+  const state = { activeSkuInput: null, searchTimer: null, dialogPosition: null };
 
   root.innerHTML = `
     <section class="kpis" aria-label="SKU 매핑 KPI">
@@ -43,7 +43,7 @@ export function mount(root, { api, toast, escapeHtml }) {
         <tbody data-role="rows"></tbody>
       </table>
     </section>
-    <dialog data-role="sku-dialog">
+    <dialog data-role="sku-dialog" class="draggable-dialog">
       <form method="dialog" class="dialog">
         <header>
           <h2>SKU 검색</h2>
@@ -155,10 +155,58 @@ export function mount(root, { api, toast, escapeHtml }) {
 
   async function openSkuDialog(input) {
     state.activeSkuInput = input;
-    $('[data-role="sku-dialog-search"]').value = input.value;
+    const dialog = $('[data-role="sku-dialog"]');
+    const searchInput = $('[data-role="sku-dialog-search"]');
+    searchInput.value = input.value;
     await renderSkuResults(input.value);
-    $('[data-role="sku-dialog"]').showModal();
-    $('[data-role="sku-dialog-search"]').focus();
+    dialog.showModal();
+    positionDialog(dialog);
+    searchInput.focus();
+  }
+
+  function positionDialog(dialog) {
+    const rect = dialog.getBoundingClientRect();
+    const left = state.dialogPosition?.left ?? Math.max(12, (window.innerWidth - rect.width) / 2);
+    const top = state.dialogPosition?.top ?? Math.max(12, (window.innerHeight - rect.height) / 2);
+    moveDialog(dialog, left, top);
+  }
+
+  function moveDialog(dialog, left, top) {
+    const rect = dialog.getBoundingClientRect();
+    const maxLeft = Math.max(12, window.innerWidth - rect.width - 12);
+    const maxTop = Math.max(12, window.innerHeight - rect.height - 12);
+    const nextLeft = Math.min(Math.max(12, left), maxLeft);
+    const nextTop = Math.min(Math.max(12, top), maxTop);
+    dialog.style.left = `${nextLeft}px`;
+    dialog.style.top = `${nextTop}px`;
+    state.dialogPosition = { left: nextLeft, top: nextTop };
+  }
+
+  function enableDialogDrag() {
+    const dialog = $('[data-role="sku-dialog"]');
+    const handle = dialog.querySelector("header");
+    let drag = null;
+
+    handle.addEventListener("pointerdown", (event) => {
+      if (event.target.closest("button, input, select")) return;
+      const rect = dialog.getBoundingClientRect();
+      drag = { offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+      handle.setPointerCapture(event.pointerId);
+    });
+
+    handle.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      moveDialog(dialog, event.clientX - drag.offsetX, event.clientY - drag.offsetY);
+    });
+
+    handle.addEventListener("pointerup", (event) => {
+      drag = null;
+      if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+    });
+
+    handle.addEventListener("pointercancel", () => {
+      drag = null;
+    });
   }
 
   async function bulkMap() {
@@ -195,6 +243,8 @@ export function mount(root, { api, toast, escapeHtml }) {
   $('[data-filter="q"]').addEventListener("keydown", (event) => {
     if (event.key === "Enter") refresh().catch((error) => toast(error.message));
   });
+
+  enableDialogDrag();
 
   return { refresh };
 }

@@ -284,11 +284,17 @@ dialog {
   width: min(720px, calc(100vw - 32px));
 }
 
+dialog.draggable-dialog {
+  margin: 0;
+}
+
 .dialog header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  cursor: move;
+  user-select: none;
 }
 
 .dialog h2 {
