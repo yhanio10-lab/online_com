@@ -304,10 +304,22 @@ dialog {
 
 .sku-result {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 18px;
   width: 100%;
   margin-bottom: 6px;
   background: white;
+  text-align: left;
+}
+
+.sku-result strong {
+  flex: 0 0 92px;
+}
+
+.sku-result span {
+  flex: 1 1 auto;
+  text-align: left;
 }
 
 .sku-result-count {
