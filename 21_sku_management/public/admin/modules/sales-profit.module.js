@@ -33,6 +33,32 @@ export function mount(root, { api, toast, escapeHtml }) {
         </table>
       </div>
       <aside class="panel">
+        <h2>상세내역</h2>
+        <div data-role="detail-title" class="muted">수익률을 클릭하면 상세내역이 표시됩니다.</div>
+        <div class="table-shell" style="margin-top: 10px;">
+          <table>
+            <thead>
+              <tr>
+                <th>일자</th>
+                <th>플랫폼</th>
+                <th>주문번호</th>
+                <th>상품코드</th>
+                <th>상품명</th>
+                <th>옵션</th>
+                <th>SKU</th>
+                <th>수량</th>
+                <th>매출액</th>
+                <th>원가</th>
+                <th>수익</th>
+                <th>수익률</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody data-role="detail-rows">
+              <tr><td colspan="13" class="muted">선택된 항목이 없습니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
         <h2>최근 임포트</h2>
         <div data-role="import-list" class="muted"></div>
         <h2 style="margin-top: 18px;">매핑 실패</h2>
@@ -83,18 +109,45 @@ export function mount(root, { api, toast, escapeHtml }) {
     $('[data-role="summary-rows"]').innerHTML = rows
       .map(
         (row) => `
-          <tr>
+          <tr data-summary-key="${escapeHtml(row.key)}">
             <td>${escapeHtml(row.key)}</td>
             <td>${row.item_count}</td>
             <td>${row.quantity}</td>
             <td>${money(row.amount)}</td>
             <td>${money(row.cost_amount)}</td>
             <td>${money(row.profit_amount)}</td>
-            <td>${percent(row.profit_rate)}</td>
+            <td><button type="button" data-action="show-details" data-key="${escapeHtml(row.key)}">${percent(row.profit_rate)}</button></td>
           </tr>
         `
       )
       .join("");
+  }
+
+  function renderDetails(title, rows) {
+    $('[data-role="detail-title"]').textContent = title;
+    $('[data-role="detail-rows"]').innerHTML = rows.length
+      ? rows
+          .map(
+            (row) => `
+              <tr>
+                <td>${escapeHtml(row.ordered_at)}</td>
+                <td>${escapeHtml(row.platform)}</td>
+                <td>${escapeHtml(row.order_id)}</td>
+                <td>${escapeHtml(row.platform_product_id)}</td>
+                <td>${escapeHtml(row.product_name)}</td>
+                <td>${escapeHtml(row.option_name)}</td>
+                <td>${escapeHtml(row.sku_code || "-")}</td>
+                <td>${row.quantity}</td>
+                <td>${money(row.amount)}</td>
+                <td>${money(row.cost_amount)}</td>
+                <td>${money(row.profit_amount)}</td>
+                <td>${percent(row.profit_rate)}</td>
+                <td>${escapeHtml(row.mapping_status)}${row.mapping_reason ? ` / ${escapeHtml(row.mapping_reason)}` : ""}</td>
+              </tr>
+            `
+          )
+          .join("")
+      : `<tr><td colspan="13" class="muted">상세내역이 없습니다.</td></tr>`;
   }
 
   function renderImports(rows) {
@@ -138,6 +191,12 @@ export function mount(root, { api, toast, escapeHtml }) {
     renderFailures(failures);
   }
 
+  async function loadDetails(key) {
+    const groupBy = $('[data-role="group-by"]').value;
+    const rows = await api(`/api/sales/details?groupBy=${encodeURIComponent(groupBy)}&key=${encodeURIComponent(key)}&limit=200`);
+    renderDetails(`${groupBy === "platform" ? "플랫폼" : "SKU"}: ${key} / ${rows.length}건`, rows);
+  }
+
   async function importPlayauto() {
     const filePath = $('[data-role="file-path"]').value.trim();
     if (!filePath) throw new Error("플레이오토 매출 파일 경로를 입력하세요.");
@@ -153,6 +212,7 @@ export function mount(root, { api, toast, escapeHtml }) {
     try {
       if (event.target.matches('[data-action="refresh"]')) await refresh();
       if (event.target.matches('[data-action="import-playauto"]')) await importPlayauto();
+      if (event.target.matches('[data-action="show-details"]')) await loadDetails(event.target.dataset.key || "");
     } catch (error) {
       toast(error.message);
     }

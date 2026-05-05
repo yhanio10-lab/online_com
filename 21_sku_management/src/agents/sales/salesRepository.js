@@ -59,6 +59,42 @@ export class SalesRepository {
     return Array.from(grouped.values());
   }
 
+  details({ from, to, groupBy, key, limit = 200 }) {
+    const ordersById = new Map(this.db.data.sales_orders.map((order) => [order.id, order]));
+    const keyName = groupBy === "platform" ? "platform" : "sku_code";
+    return this.db.data.sales_order_items
+      .filter((item) => {
+        const order = ordersById.get(item.sales_order_id);
+        if (!order) return false;
+        if (from && order.ordered_at < from) return false;
+        if (to && order.ordered_at > to) return false;
+        if (groupBy === "sku" && !item.sku_code) return false;
+        return String(item[keyName] || "unmapped") === String(key || "");
+      })
+      .slice(-limit)
+      .reverse()
+      .map((item) => {
+        const order = ordersById.get(item.sales_order_id);
+        return {
+          id: item.id,
+          ordered_at: order?.ordered_at || "",
+          order_id: item.order_id || order?.order_id || "",
+          platform: item.platform || order?.platform || "",
+          platform_product_id: item.platform_product_id || "",
+          product_name: item.product_name || "",
+          option_name: item.option_name || "",
+          sku_code: item.sku_code || "",
+          quantity: Number(item.quantity || 0),
+          amount: Number(item.gross_sales_amount ?? item.amount ?? 0),
+          cost_amount: Number(item.cost_amount || 0),
+          profit_amount: Number(item.profit_amount || 0),
+          profit_rate: Number(item.profit_rate || 0),
+          mapping_status: item.mapping_status || "",
+          mapping_reason: item.mapping_reason || ""
+        };
+      });
+  }
+
   importBatches() {
     return [...(this.db.data.sales_import_batches || [])].sort((a, b) => String(b.imported_at).localeCompare(String(a.imported_at)));
   }

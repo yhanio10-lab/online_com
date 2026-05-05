@@ -40,6 +40,16 @@ export class SalesService {
     });
   }
 
+  details(query) {
+    return this.salesRepository.details({
+      from: query.from || "",
+      to: query.to || "",
+      groupBy: query.groupBy || "sku",
+      key: query.key || "",
+      limit: Number(query.limit || 200)
+    });
+  }
+
   importBatches() {
     return this.salesRepository.importBatches();
   }

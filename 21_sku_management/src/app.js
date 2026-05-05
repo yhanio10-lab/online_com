@@ -154,6 +154,9 @@ export async function createApp({ db = new JsonDatabase() } = {}) {
       if (req.method === "GET" && url.pathname === "/api/sales/mapping-failures") {
         return sendJson(res, 200, { ok: true, data: salesService.failedItems(query) });
       }
+      if (req.method === "GET" && url.pathname === "/api/sales/details") {
+        return sendJson(res, 200, { ok: true, data: salesService.details(query) });
+      }
       if (req.method === "GET" && url.pathname === "/api/sales/summary") {
         return sendJson(res, 200, { ok: true, data: salesService.summary(query) });
       }
