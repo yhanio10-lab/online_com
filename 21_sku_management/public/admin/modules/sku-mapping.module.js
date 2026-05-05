@@ -35,6 +35,7 @@ export function mount(root, { api, toast, escapeHtml }) {
       </select>
       <button data-action="search">검색</button>
       <button data-action="bulk-map">선택 일괄 매핑</button>
+      <button data-action="save-filled">입력된 SKU 일괄저장</button>
     </section>
     <section class="table-shell">
       <table>
@@ -207,6 +208,12 @@ export function mount(root, { api, toast, escapeHtml }) {
     await refresh();
   }
 
+  function filledSkuInputs() {
+    return Array.from(root.querySelectorAll(".sku-input"))
+      .filter((input) => input.value.trim())
+      .filter((input) => input.value.trim() !== (input.defaultValue || "").trim());
+  }
+
   function selectedSkuInputs() {
     return Array.from(root.querySelectorAll(".row-check:checked"))
       .map((checkbox) => checkbox.closest("tr")?.querySelector(".sku-input"))
@@ -338,6 +345,34 @@ export function mount(root, { api, toast, escapeHtml }) {
     await refresh();
   }
 
+  async function saveFilledInputs() {
+    const inputs = filledSkuInputs();
+    if (!inputs.length) throw new Error("저장할 SKU 입력값이 없습니다.");
+    const createItems = [];
+    const updateInputs = [];
+    for (const input of inputs) {
+      if (input.dataset.mappingId) updateInputs.push(input);
+      else createItems.push(getRowPayload(input));
+    }
+    const results = [];
+    if (createItems.length) {
+      const data = await api("/api/mapping/bulk", {
+        method: "POST",
+        body: JSON.stringify({ created_by: "admin-ui", items: createItems })
+      });
+      results.push(`${data.success}/${data.total} 신규`);
+    }
+    for (const input of updateInputs) {
+      await api(`/api/mapping/${input.dataset.mappingId}`, {
+        method: "PUT",
+        body: JSON.stringify(getRowPayload(input))
+      });
+    }
+    if (updateInputs.length) results.push(`${updateInputs.length} 수정`);
+    toast(`입력된 SKU 일괄저장 완료: ${results.join(", ")}`);
+    await refresh();
+  }
+
   function syncGroupCheckbox(key) {
     const groupCheckbox = root.querySelector(`.group-check[data-group-key="${CSS.escape(key)}"]`);
     if (!groupCheckbox) return;
@@ -368,6 +403,7 @@ export function mount(root, { api, toast, escapeHtml }) {
       if (event.target.matches(".save-btn")) await saveInput(event.target.closest("tr").querySelector(".sku-input"));
       if (event.target.matches(".sku-search-btn")) await openSkuDialog(event.target.closest("tr").querySelector(".sku-input"));
       if (event.target.matches('[data-action="bulk-map"]')) await bulkMap();
+      if (event.target.matches('[data-action="save-filled"]')) await saveFilledInputs();
       if (event.target.matches('[data-action="apply-selected-skus"]')) applySelectedSkusInOrder();
       if (event.target.matches('[data-action="clear-selected-skus"]')) clearSelectedSkus();
       if (event.target.matches(".group-toggle")) {
