@@ -159,6 +159,15 @@ button {
   margin-bottom: 14px;
 }
 
+.module-root > .filters {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  padding: 10px 0;
+  background: var(--band);
+  border-bottom: 1px solid var(--border);
+}
+
 .filters input {
   flex: 1 1 300px;
 }
