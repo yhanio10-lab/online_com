@@ -35,7 +35,7 @@
           <option value="unmapped">미매핑</option>
           <option value="conflict">충돌</option>
         </select>
-        <input id="searchInput" type="search" placeholder="상품코드, 상품명, 옵션명, 옵션ID, SKU 검색" />
+        <input id="searchInput" type="search" placeholder="상품번호, 상품명, 옵션명, 옵션ID, SKU 검색" />
         <button id="searchBtn">검색</button>
         <button id="bulkMapBtn">선택 일괄 매핑</button>
       </section>
@@ -47,7 +47,6 @@
               <th><input id="selectAll" type="checkbox" /></th>
               <th>플랫폼</th>
               <th>플랫폼 상품번호</th>
-              <th>판매자 상품코드</th>
               <th>상품명</th>
               <th>옵션명</th>
               <th>옵션ID</th>
@@ -71,6 +70,7 @@
           <button value="close" title="닫기">×</button>
         </header>
         <input id="skuDialogSearch" type="search" placeholder="SKU 코드 또는 이름" />
+        <div id="skuResultCount" class="sku-result-count"></div>
         <div id="skuResults" class="sku-results"></div>
       </form>
     </dialog>

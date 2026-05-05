@@ -72,7 +72,7 @@ export async function createApp({ db = new JsonDatabase() } = {}) {
         return sendJson(res, 200, { ok: true, data: mappingService.listOptions(query) });
       }
       if (req.method === "GET" && url.pathname === "/api/sku/search") {
-        return sendJson(res, 200, { ok: true, data: mappingService.searchSku(query.q || "") });
+        return sendJson(res, 200, { ok: true, data: mappingService.searchSku(query.q || "", query.size || 200) });
       }
       if (req.method === "POST" && url.pathname === "/api/sku/import/ecount") {
         const body = await readBody(req);

@@ -118,7 +118,7 @@ button {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1220px;
+  min-width: 1120px;
 }
 
 th,
@@ -200,7 +200,7 @@ tr.conflict-row {
 dialog {
   border: 1px solid var(--border);
   border-radius: 8px;
-  width: min(560px, calc(100vw - 32px));
+  width: min(720px, calc(100vw - 32px));
 }
 
 .dialog header {
@@ -217,8 +217,14 @@ dialog {
 
 .sku-results {
   margin-top: 12px;
-  max-height: 320px;
+  max-height: 420px;
   overflow: auto;
+}
+
+.sku-result-count {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .sku-result {

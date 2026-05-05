@@ -55,7 +55,6 @@ function renderRows(rows) {
       <td><input class="row-check" type="checkbox" data-option-id="${row.id}" data-platform="${escapeHtml(row.platform)}"></td>
       <td>${escapeHtml(row.platform)}</td>
       <td>${escapeHtml(row.platform_product_id)}</td>
-      <td>${escapeHtml(row.seller_product_code)}</td>
       <td>${escapeHtml(row.product_name)}</td>
       <td>${escapeHtml(row.option_name)}</td>
       <td>${escapeHtml(row.option_id)}</td>
@@ -120,9 +119,10 @@ async function openSkuDialog(input) {
 }
 
 async function renderSkuResults(q) {
-  const results = await api(`/api/sku/search?q=${encodeURIComponent(q || "")}`);
+  const results = await api(`/api/sku/search?q=${encodeURIComponent(q || "")}&size=200`);
   const box = $("#skuResults");
   box.innerHTML = "";
+  $("#skuResultCount").textContent = `검색 결과 ${results.length}개${results.length >= 200 ? " 이상, 검색어를 더 좁혀주세요" : ""}`;
   for (const sku of results) {
     const button = document.createElement("button");
     button.type = "button";

@@ -22,7 +22,6 @@ export class SkuMappingRepository {
       return {
         ...option,
         platform_product_id: product?.product_id || "",
-        seller_product_code: product?.seller_product_code || "",
         product_name: product?.product_name || "",
         current_mapping_id: currentMapping?.id || null,
         current_sku_code: currentMapping?.sku_code || null,
@@ -37,7 +36,7 @@ export class SkuMappingRepository {
     if (status) rows = rows.filter((row) => row.mapping_status === status || row.status === status);
     if (q) {
       rows = rows.filter((row) =>
-        [row.platform_product_id, row.seller_product_code, row.product_name, row.option_name, row.option_id, row.current_sku_code].some((value) => textIncludes(value, q))
+        [row.platform_product_id, row.product_name, row.option_name, row.option_id, row.current_sku_code].some((value) => textIncludes(value, q))
       );
     }
 
@@ -56,11 +55,15 @@ export class SkuMappingRepository {
     };
   }
 
-  searchSku(q) {
+  searchSku(q, size = 200) {
     const term = String(q || "").trim().toLowerCase();
+    const limit = Math.min(500, Math.max(1, Number(size || 200)));
     return this.db.data.sku_master
-      .filter((sku) => !term || sku.sku_code.toLowerCase().includes(term) || sku.sku_name.toLowerCase().includes(term))
-      .slice(0, 20);
+      .filter((sku) => {
+        if (!term) return true;
+        return [sku.sku_code, sku.sku_name, sku.spec, sku.barcode].some((value) => textIncludes(value, term));
+      })
+      .slice(0, limit);
   }
 
   findSku(skuCode) {

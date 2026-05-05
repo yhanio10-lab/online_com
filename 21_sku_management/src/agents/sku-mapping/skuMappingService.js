@@ -27,8 +27,8 @@ export class SkuMappingService {
     };
   }
 
-  searchSku(q) {
-    return this.repository.searchSku(q);
+  searchSku(q, size = 200) {
+    return this.repository.searchSku(q, size);
   }
 
   async createMapping(payload) {
