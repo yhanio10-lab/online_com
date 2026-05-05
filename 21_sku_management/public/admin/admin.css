@@ -329,6 +329,14 @@ dialog.draggable-dialog {
   overflow: auto;
 }
 
+.sku-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
 .sku-result {
   display: flex;
   align-items: center;
@@ -338,6 +346,22 @@ dialog.draggable-dialog {
   margin-bottom: 6px;
   background: white;
   text-align: left;
+}
+
+.sku-result.selected {
+  background: #dff7f2;
+  border-color: #77c7b8;
+}
+
+.sku-result em {
+  flex: 0 0 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #1264a3;
+  color: white;
+  font-style: normal;
+  line-height: 24px;
+  text-align: center;
 }
 
 .sku-result strong {

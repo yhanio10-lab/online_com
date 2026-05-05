@@ -5,7 +5,8 @@ export function mount(root, { api, toast, escapeHtml }) {
     dialogPosition: null,
     rows: [],
     viewMode: "option",
-    collapsedGroups: new Set()
+    collapsedGroups: new Set(),
+    selectedSkuCodes: []
   };
 
   root.innerHTML = `
@@ -62,6 +63,11 @@ export function mount(root, { api, toast, escapeHtml }) {
         </header>
         <input data-role="sku-dialog-search" type="search" placeholder="SKU 코드 또는 이름" />
         <div data-role="sku-result-count" class="sku-result-count"></div>
+        <div class="sku-dialog-actions">
+          <span data-role="sku-selection-count" class="muted">옵션 0개 / SKU 선택 0개</span>
+          <button type="button" data-action="apply-selected-skus">선택 순서대로 적용</button>
+          <button type="button" data-action="clear-selected-skus">선택 초기화</button>
+        </div>
         <div data-role="sku-results" class="sku-results"></div>
       </form>
     </dialog>
@@ -152,9 +158,7 @@ export function mount(root, { api, toast, escapeHtml }) {
           <td><button class="select-unmapped-btn" data-group-key="${escapeHtml(group.key)}">미매핑 선택</button></td>
         </tr>
       `);
-      if (!collapsed) {
-        html.push(...group.rows.map((row) => optionRowHtml(row, "group-child-row", group.key)));
-      }
+      if (!collapsed) html.push(...group.rows.map((row) => optionRowHtml(row, "group-child-row", group.key)));
     }
     $('[data-role="rows"]').innerHTML = html.join("");
     for (const group of buildGroups(rows)) syncGroupCheckbox(group.key);
@@ -203,21 +207,38 @@ export function mount(root, { api, toast, escapeHtml }) {
     await refresh();
   }
 
+  function selectedSkuInputs() {
+    return Array.from(root.querySelectorAll(".row-check:checked"))
+      .map((checkbox) => checkbox.closest("tr")?.querySelector(".sku-input"))
+      .filter(Boolean);
+  }
+
+  function renderSkuSelectionCount() {
+    const node = $('[data-role="sku-selection-count"]');
+    if (node) node.textContent = `옵션 ${selectedSkuInputs().length}개 / SKU 선택 ${state.selectedSkuCodes.length}개`;
+  }
+
   async function renderSkuResults(q) {
     const results = await api(`/api/sku/search?q=${encodeURIComponent(q || "")}&size=200`);
     const box = $('[data-role="sku-results"]');
     box.innerHTML = "";
     $('[data-role="sku-result-count"]').textContent = `검색 결과 ${results.length}개${results.length >= 200 ? " 이상, 검색어를 더 좁혀주세요" : ""}`;
+    renderSkuSelectionCount();
     for (const sku of results) {
+      const order = state.selectedSkuCodes.indexOf(sku.sku_code) + 1;
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "sku-result";
+      button.className = `sku-result ${order ? "selected" : ""}`;
+      button.dataset.skuCode = sku.sku_code;
       const setLabel = sku.is_set ? " / 세트" : "";
       const specLabel = sku.spec ? ` / ${escapeHtml(sku.spec)}` : "";
-      button.innerHTML = `<strong>${escapeHtml(sku.sku_code)}</strong><span>${escapeHtml(sku.sku_name)}${setLabel}${specLabel}</span>`;
+      button.innerHTML = `<em>${order || ""}</em><strong>${escapeHtml(sku.sku_code)}</strong><span>${escapeHtml(sku.sku_name)}${setLabel}${specLabel}</span>`;
       button.addEventListener("click", () => {
-        applySkuToSelection(sku.sku_code);
-        $('[data-role="sku-dialog"]').close();
+        if (selectedSkuInputs().length) toggleSkuResultSelection(sku.sku_code);
+        else {
+          applySingleSku(sku.sku_code);
+          $('[data-role="sku-dialog"]').close();
+        }
       });
       box.appendChild(button);
     }
@@ -225,6 +246,7 @@ export function mount(root, { api, toast, escapeHtml }) {
 
   async function openSkuDialog(input) {
     state.activeSkuInput = input;
+    state.selectedSkuCodes = [];
     const dialog = $('[data-role="sku-dialog"]');
     const searchInput = $('[data-role="sku-dialog-search"]');
     searchInput.value = input.value;
@@ -232,6 +254,38 @@ export function mount(root, { api, toast, escapeHtml }) {
     dialog.showModal();
     positionDialog(dialog);
     searchInput.focus();
+  }
+
+  function applySingleSku(skuCode) {
+    if (state.activeSkuInput) {
+      state.activeSkuInput.value = skuCode;
+      toast("SKU를 입력했습니다.");
+    }
+  }
+
+  function toggleSkuResultSelection(skuCode) {
+    const existingIndex = state.selectedSkuCodes.indexOf(skuCode);
+    if (existingIndex >= 0) state.selectedSkuCodes.splice(existingIndex, 1);
+    else state.selectedSkuCodes.push(skuCode);
+    renderSkuResults($('[data-role="sku-dialog-search"]').value).catch((error) => toast(error.message));
+  }
+
+  function clearSelectedSkus() {
+    state.selectedSkuCodes = [];
+    renderSkuResults($('[data-role="sku-dialog-search"]').value).catch((error) => toast(error.message));
+  }
+
+  function applySelectedSkusInOrder() {
+    const inputs = selectedSkuInputs();
+    if (!inputs.length) throw new Error("먼저 옵션 행을 선택하세요.");
+    if (inputs.length !== state.selectedSkuCodes.length) {
+      throw new Error(`선택한 옵션 ${inputs.length}개와 SKU ${state.selectedSkuCodes.length}개의 개수가 다릅니다.`);
+    }
+    inputs.forEach((input, index) => {
+      input.value = state.selectedSkuCodes[index];
+    });
+    $('[data-role="sku-dialog"]').close();
+    toast(`${inputs.length}개 옵션에 SKU를 순서대로 적용했습니다.`);
   }
 
   function positionDialog(dialog) {
@@ -284,27 +338,6 @@ export function mount(root, { api, toast, escapeHtml }) {
     await refresh();
   }
 
-  function selectedSkuInputs() {
-    return Array.from(root.querySelectorAll(".row-check:checked"))
-      .map((checkbox) => checkbox.closest("tr")?.querySelector(".sku-input"))
-      .filter(Boolean);
-  }
-
-  function applySkuToSelection(skuCode) {
-    const inputs = selectedSkuInputs();
-    if (inputs.length) {
-      inputs.forEach((input) => {
-        input.value = skuCode;
-      });
-      toast(`선택된 ${inputs.length}개 옵션에 SKU를 적용했습니다.`);
-      return;
-    }
-    if (state.activeSkuInput) {
-      state.activeSkuInput.value = skuCode;
-      toast("SKU를 입력했습니다.");
-    }
-  }
-
   function syncGroupCheckbox(key) {
     const groupCheckbox = root.querySelector(`.group-check[data-group-key="${CSS.escape(key)}"]`);
     if (!groupCheckbox) return;
@@ -335,6 +368,8 @@ export function mount(root, { api, toast, escapeHtml }) {
       if (event.target.matches(".save-btn")) await saveInput(event.target.closest("tr").querySelector(".sku-input"));
       if (event.target.matches(".sku-search-btn")) await openSkuDialog(event.target.closest("tr").querySelector(".sku-input"));
       if (event.target.matches('[data-action="bulk-map"]')) await bulkMap();
+      if (event.target.matches('[data-action="apply-selected-skus"]')) applySelectedSkusInOrder();
+      if (event.target.matches('[data-action="clear-selected-skus"]')) clearSelectedSkus();
       if (event.target.matches(".group-toggle")) {
         const key = event.target.dataset.groupKey;
         if (state.collapsedGroups.has(key)) state.collapsedGroups.delete(key);
