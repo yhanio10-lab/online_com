@@ -40,6 +40,46 @@ test("sales details returns rows for a clicked summary key", async () => {
   assert.equal(details[0].profit_rate, 1);
 });
 
+test("sales details can return all rows without the old 200 row cap", () => {
+  const db = createTestDb();
+  const salesRepository = new SalesRepository(db);
+  const timestamp = new Date().toISOString();
+  db.data.sales_orders.push({
+    id: 101,
+    platform: "smartstore",
+    order_id: "ORDER-BULK",
+    ordered_at: timestamp.slice(0, 10),
+    buyer_name: "",
+    total_amount: 0,
+    created_at: timestamp,
+    updated_at: timestamp
+  });
+  for (let index = 0; index < 250; index += 1) {
+    db.data.sales_order_items.push({
+      id: index + 1,
+      sales_order_id: 101,
+      platform: "smartstore",
+      order_id: `ORDER-BULK-${index}`,
+      platform_product_id: "P-100",
+      product_name: "테스트 상품",
+      option_name: "레드 / 500ml",
+      option_id: "OPT-RED-500",
+      product_option_id: 1,
+      sku_code: "EC-TUMBLER-RED-500",
+      quantity: 1,
+      amount: 1000,
+      gross_sales_amount: 1000,
+      cost_amount: 0,
+      mapping_status: "mapped",
+      created_at: timestamp
+    });
+  }
+
+  const details = salesRepository.details({ groupBy: "platform", key: "smartstore", limit: 0 });
+
+  assert.equal(details.length, 250);
+});
+
 test("platform fee rules reduce mapped sales profit", async () => {
   const db = createTestDb();
   const salesRepository = new SalesRepository(db);

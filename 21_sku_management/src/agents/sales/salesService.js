@@ -41,12 +41,13 @@ export class SalesService {
   }
 
   details(query) {
+    const parsedLimit = Number(query.limit || 0);
     return this.salesRepository.details({
       from: query.from || "",
       to: query.to || "",
       groupBy: query.groupBy || "sku",
       key: query.key || "",
-      limit: Number(query.limit || 200)
+      limit: Number.isFinite(parsedLimit) ? parsedLimit : 0
     });
   }
 

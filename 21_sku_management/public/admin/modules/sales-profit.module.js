@@ -1,4 +1,7 @@
 export function mount(root, { api, toast, escapeHtml }) {
+  let currentDetails = [];
+  let currentDetailTitle = "상세내역";
+
   root.innerHTML = `
     <section class="kpis" aria-label="매출/수익 KPI">
       <div class="kpi"><span>매출액</span><strong data-kpi="sales">0</strong></div>
@@ -54,34 +57,7 @@ export function mount(root, { api, toast, escapeHtml }) {
         </section>
       </div>
       <aside class="panel">
-        <h2>상세내역</h2>
-        <div data-role="detail-title" class="muted">수익률을 클릭하면 상세내역이 표시됩니다.</div>
-        <div class="table-shell" style="margin-top: 10px;">
-          <table>
-            <thead>
-              <tr>
-                <th>일자</th>
-                <th>플랫폼</th>
-                <th>주문번호</th>
-                <th>상품코드</th>
-                <th>상품명</th>
-                <th>옵션</th>
-                <th>SKU</th>
-                <th>수량</th>
-                <th>매출액</th>
-                <th>원가</th>
-                <th>수수료</th>
-                <th>수익</th>
-                <th>수익률</th>
-                <th>상태</th>
-              </tr>
-            </thead>
-            <tbody data-role="detail-rows">
-              <tr><td colspan="14" class="muted">선택된 항목이 없습니다.</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <h2 style="margin-top: 18px;">최근 임포트</h2>
+        <h2>최근 임포트</h2>
         <div data-role="import-list" class="muted"></div>
         <h2 style="margin-top: 18px;">매핑 실패</h2>
         <div class="table-shell">
@@ -99,6 +75,40 @@ export function mount(root, { api, toast, escapeHtml }) {
           </table>
         </div>
       </aside>
+    </section>
+    <section class="panel detail-panel">
+      <div class="detail-header">
+        <div>
+          <h2>상세내역</h2>
+          <div data-role="detail-title" class="muted">수익률을 클릭하면 전체 상세내역이 표시됩니다.</div>
+        </div>
+        <button data-action="download-details">엑셀 다운로드</button>
+      </div>
+      <div class="table-shell detail-table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>일자</th>
+              <th>플랫폼</th>
+              <th>주문번호</th>
+              <th>상품코드</th>
+              <th>상품명</th>
+              <th>옵션</th>
+              <th>SKU</th>
+              <th>수량</th>
+              <th>매출액</th>
+              <th>원가</th>
+              <th>수수료</th>
+              <th>수익</th>
+              <th>수익률</th>
+              <th>상태</th>
+            </tr>
+          </thead>
+          <tbody data-role="detail-rows">
+            <tr><td colspan="14" class="muted">선택된 항목이 없습니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   `;
 
@@ -173,6 +183,8 @@ export function mount(root, { api, toast, escapeHtml }) {
   }
 
   function renderDetails(title, rows) {
+    currentDetailTitle = title;
+    currentDetails = rows;
     $('[data-role="detail-title"]').textContent = title;
     $('[data-role="detail-rows"]').innerHTML = rows.length
       ? rows
@@ -245,8 +257,51 @@ export function mount(root, { api, toast, escapeHtml }) {
 
   async function loadDetails(key) {
     const groupBy = $('[data-role="group-by"]').value;
-    const rows = await api(`/api/sales/details?groupBy=${encodeURIComponent(groupBy)}&key=${encodeURIComponent(key)}&limit=200`);
+    const rows = await api(`/api/sales/details?groupBy=${encodeURIComponent(groupBy)}&key=${encodeURIComponent(key)}&limit=0`);
     renderDetails(`${groupBy === "platform" ? "플랫폼" : "SKU"}: ${key} / ${rows.length}건`, rows);
+    root.querySelector(".detail-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function csvCell(value) {
+    const text = String(value ?? "");
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  function downloadDetails() {
+    if (!currentDetails.length) {
+      toast("다운로드할 상세내역이 없습니다.");
+      return;
+    }
+    const headers = ["일자", "플랫폼", "주문번호", "상품코드", "상품명", "옵션", "SKU", "수량", "매출액", "원가", "수수료", "수익", "수익률", "상태"];
+    const lines = [
+      headers.map(csvCell).join(","),
+      ...currentDetails.map((row) =>
+        [
+          row.ordered_at,
+          row.platform,
+          row.order_id,
+          row.platform_product_id,
+          row.product_name,
+          row.option_name,
+          row.sku_code || "",
+          row.quantity,
+          row.amount,
+          row.cost_amount,
+          row.platform_fee_amount,
+          row.profit_amount,
+          percent(row.profit_rate),
+          `${row.mapping_status || ""}${row.mapping_reason ? ` / ${row.mapping_reason}` : ""}`
+        ]
+          .map(csvCell)
+          .join(",")
+      )
+    ];
+    const blob = new Blob([`\ufeff${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${currentDetailTitle.replace(/[\\/:*?"<>|]/g, "_")}_상세내역.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
   async function saveFees() {
@@ -277,6 +332,7 @@ export function mount(root, { api, toast, escapeHtml }) {
     try {
       if (event.target.matches('[data-action="refresh"]')) await refresh();
       if (event.target.matches('[data-action="save-fees"]')) await saveFees();
+      if (event.target.matches('[data-action="download-details"]')) downloadDetails();
       if (event.target.matches('[data-action="import-playauto"]')) await importPlayauto();
       if (event.target.matches('[data-action="show-details"]')) await loadDetails(event.target.dataset.key || "");
     } catch (error) {

@@ -284,6 +284,22 @@ tr.group-row strong {
   font-size: 18px;
 }
 
+.detail-panel {
+  margin-top: 14px;
+}
+
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.detail-table-shell {
+  max-height: 70vh;
+}
+
 .muted {
   color: var(--muted);
 }

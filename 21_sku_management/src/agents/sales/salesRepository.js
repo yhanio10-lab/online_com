@@ -84,10 +84,10 @@ export class SalesRepository {
     return Array.from(grouped.values());
   }
 
-  details({ from, to, groupBy, key, limit = 200 }) {
+  details({ from, to, groupBy, key, limit = 0 }) {
     const ordersById = new Map(this.db.data.sales_orders.map((order) => [order.id, order]));
     const keyName = groupBy === "platform" ? "platform" : "sku_code";
-    return this.db.data.sales_order_items
+    const rows = this.db.data.sales_order_items
       .filter((item) => {
         const order = ordersById.get(item.sales_order_id);
         if (!order) return false;
@@ -96,8 +96,6 @@ export class SalesRepository {
         if (groupBy === "sku" && !item.sku_code) return false;
         return String(item[keyName] || "unmapped") === String(key || "");
       })
-      .slice(-limit)
-      .reverse()
       .map((item) => {
         const order = ordersById.get(item.sales_order_id);
         const financials = this.calculateFinancials(item);
@@ -121,6 +119,8 @@ export class SalesRepository {
           mapping_reason: item.mapping_reason || ""
         };
       });
+    const sortedRows = rows.reverse();
+    return limit > 0 ? sortedRows.slice(0, limit) : sortedRows;
   }
 
   platformFees() {
