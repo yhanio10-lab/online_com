@@ -143,7 +143,8 @@ export function mount(root, { api, toast, escapeHtml }) {
       button.type = "button";
       button.className = "sku-result";
       const setLabel = sku.is_set ? " / 세트" : "";
-      button.innerHTML = `<strong>${escapeHtml(sku.sku_code)}</strong><span>${escapeHtml(sku.sku_name)}${setLabel} / 입고 ${sku.purchase_price || 0} / 출고 ${sku.sale_price || 0}</span>`;
+      const specLabel = sku.spec ? ` / 규격 ${escapeHtml(sku.spec)}` : "";
+      button.innerHTML = `<strong>${escapeHtml(sku.sku_code)}</strong><span>${escapeHtml(sku.sku_name)}${setLabel}${specLabel}</span>`;
       button.addEventListener("click", () => {
         if (state.activeSkuInput) state.activeSkuInput.value = sku.sku_code;
         $('[data-role="sku-dialog"]').close();
