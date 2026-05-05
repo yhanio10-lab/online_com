@@ -39,4 +39,12 @@ export class SalesService {
       groupBy: query.groupBy || "sku"
     });
   }
+
+  importBatches() {
+    return this.salesRepository.importBatches();
+  }
+
+  failedItems(query = {}) {
+    return this.salesRepository.failedItems(Number(query.limit || 100));
+  }
 }

@@ -10,5 +10,11 @@
     "label": "세트/번들",
     "description": "세트 SKU의 구성품과 구성 수량을 관리합니다.",
     "module": "/admin/modules/sku-bundles.module.js"
+  },
+  {
+    "id": "sales-profit",
+    "label": "매출/수익",
+    "description": "플레이오토 매출자료를 가져오고 플랫폼/SKU별 수익을 조회합니다.",
+    "module": "/admin/modules/sales-profit.module.js"
   }
 ]

@@ -10,6 +10,7 @@ import { SkuBundleRepository } from "./agents/sku-bundles/skuBundleRepository.js
 import { SkuBundleService } from "./agents/sku-bundles/skuBundleService.js";
 import { SalesRepository } from "./agents/sales/salesRepository.js";
 import { SalesService } from "./agents/sales/salesService.js";
+import { PlayautoSalesImportService } from "./agents/sales/playautoSalesImportService.js";
 import { InventoryRepository } from "./agents/inventory/inventoryRepository.js";
 import { InventoryService } from "./agents/inventory/inventoryService.js";
 import { sendError, sendJson } from "./shared/httpError.js";
@@ -65,6 +66,7 @@ export async function createApp({ db = new JsonDatabase() } = {}) {
   const ecountSkuImportService = new EcountSkuImportService(db);
   const smartstoreProductImportService = new SmartstoreProductImportService(db);
   const salesService = new SalesService(new SalesRepository(db), mappingRepository);
+  const playautoSalesImportService = new PlayautoSalesImportService(db, mappingRepository);
   const inventoryService = new InventoryService(new InventoryRepository(db));
   const bundleService = new SkuBundleService(new SkuBundleRepository(db), db);
 
@@ -141,6 +143,16 @@ export async function createApp({ db = new JsonDatabase() } = {}) {
       }
       if (req.method === "POST" && url.pathname === "/api/sales/ingest") {
         return sendJson(res, 201, { ok: true, data: await salesService.ingest(await readBody(req)) });
+      }
+      if (req.method === "POST" && url.pathname === "/api/sales/import/playauto") {
+        const body = await readBody(req);
+        return sendJson(res, 200, { ok: true, data: await playautoSalesImportService.importFile(body.file_path) });
+      }
+      if (req.method === "GET" && url.pathname === "/api/sales/imports") {
+        return sendJson(res, 200, { ok: true, data: salesService.importBatches() });
+      }
+      if (req.method === "GET" && url.pathname === "/api/sales/mapping-failures") {
+        return sendJson(res, 200, { ok: true, data: salesService.failedItems(query) });
       }
       if (req.method === "GET" && url.pathname === "/api/sales/summary") {
         return sendJson(res, 200, { ok: true, data: salesService.summary(query) });

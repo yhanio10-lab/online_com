@@ -7,6 +7,7 @@
     "start": "node src/server.js",
     "import:ecount": "node scripts/import-ecount-items.js",
     "import:smartstore": "node scripts/import-smartstore-products.js",
+    "import:playauto": "node scripts/import-playauto-sales.js",
     "test": "node tests/run-tests.js"
   },
   "engines": {

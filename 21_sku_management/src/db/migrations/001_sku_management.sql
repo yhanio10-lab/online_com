@@ -106,16 +106,40 @@ CREATE TABLE IF NOT EXISTS sales_orders (
   UNIQUE(platform, order_id)
 );
 
+CREATE TABLE IF NOT EXISTS sales_import_batches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  total_rows INTEGER NOT NULL DEFAULT 0,
+  imported_rows INTEGER NOT NULL DEFAULT 0,
+  mapped_rows INTEGER NOT NULL DEFAULT 0,
+  failed_rows INTEGER NOT NULL DEFAULT 0,
+  gross_sales_amount REAL NOT NULL DEFAULT 0,
+  cost_amount REAL NOT NULL DEFAULT 0,
+  profit_amount REAL NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS sales_order_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   sales_order_id INTEGER NOT NULL REFERENCES sales_orders(id),
   platform TEXT NOT NULL,
+  sales_import_batch_id INTEGER REFERENCES sales_import_batches(id),
+  order_id TEXT,
+  product_name TEXT,
+  option_name TEXT,
+  platform_product_id TEXT,
   option_id TEXT NOT NULL,
   product_option_id INTEGER REFERENCES product_options(id),
   sku_code TEXT REFERENCES sku_master(sku_code),
   quantity INTEGER NOT NULL,
   amount REAL NOT NULL DEFAULT 0,
+  gross_sales_amount REAL NOT NULL DEFAULT 0,
+  cost_amount REAL NOT NULL DEFAULT 0,
+  profit_amount REAL NOT NULL DEFAULT 0,
+  profit_rate REAL NOT NULL DEFAULT 0,
   mapping_status TEXT NOT NULL,
+  mapping_reason TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
