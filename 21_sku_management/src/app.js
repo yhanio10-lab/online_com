@@ -5,6 +5,7 @@ import { JsonDatabase } from "./db/jsonDatabase.js";
 import { SkuMappingRepository } from "./agents/sku-mapping/skuMappingRepository.js";
 import { SkuMappingService } from "./agents/sku-mapping/skuMappingService.js";
 import { EcountSkuImportService } from "./agents/sku-mapping/ecountSkuImportService.js";
+import { SmartstoreProductImportService } from "./agents/platform-sync/smartstoreProductImportService.js";
 import { SalesRepository } from "./agents/sales/salesRepository.js";
 import { SalesService } from "./agents/sales/salesService.js";
 import { InventoryRepository } from "./agents/inventory/inventoryRepository.js";
@@ -58,6 +59,7 @@ export async function createApp({ db = new JsonDatabase() } = {}) {
   const mappingRepository = new SkuMappingRepository(db);
   const mappingService = new SkuMappingService(mappingRepository, db);
   const ecountSkuImportService = new EcountSkuImportService(db);
+  const smartstoreProductImportService = new SmartstoreProductImportService(db);
   const salesService = new SalesService(new SalesRepository(db), mappingRepository);
   const inventoryService = new InventoryService(new InventoryRepository(db));
 
@@ -79,6 +81,11 @@ export async function createApp({ db = new JsonDatabase() } = {}) {
           ok: true,
           data: await ecountSkuImportService.importFile(filePath, { changedBy: body.changed_by || "api" })
         });
+      }
+      if (req.method === "POST" && url.pathname === "/api/platform/smartstore/import/products") {
+        const body = await readBody(req);
+        const filePath = body.file_path || "./스마트스토어상품_20260505_105831.xlsx";
+        return sendJson(res, 200, { ok: true, data: await smartstoreProductImportService.importFile(filePath) });
       }
       if (req.method === "GET" && url.pathname === "/api/mapping/conflicts") {
         return sendJson(res, 200, { ok: true, data: mappingService.conflicts() });

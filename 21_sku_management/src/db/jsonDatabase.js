@@ -23,14 +23,14 @@ export function createSeedData() {
       inventory_movements: 1
     },
     products: [
-      { id: 1, platform: "smartstore", product_id: "P-100", product_name: "데일리 텀블러", status: "active", created_at: createdAt, updated_at: createdAt },
-      { id: 2, platform: "openmarket", product_id: "P-200", product_name: "코튼 파우치", status: "active", created_at: createdAt, updated_at: createdAt }
+      createSeedProduct(1, "smartstore", "P-100", "데일리 텀블러", createdAt),
+      createSeedProduct(2, "openmarket", "P-200", "코튼 파우치", createdAt)
     ],
     product_options: [
-      { id: 1, platform: "smartstore", product_id: 1, option_id: "OPT-RED-500", option_name: "레드 / 500ml", status: "active", created_at: createdAt, updated_at: createdAt },
-      { id: 2, platform: "smartstore", product_id: 1, option_id: "OPT-BLK-500", option_name: "블랙 / 500ml", status: "active", created_at: createdAt, updated_at: createdAt },
-      { id: 3, platform: "openmarket", product_id: 2, option_id: "POUCH-S", option_name: "소형", status: "active", created_at: createdAt, updated_at: createdAt },
-      { id: 4, platform: "openmarket", product_id: 2, option_id: "POUCH-L", option_name: "대형", status: "active", created_at: createdAt, updated_at: createdAt }
+      createSeedOption(1, "smartstore", 1, "OPT-RED-500", "레드 / 500ml", createdAt),
+      createSeedOption(2, "smartstore", 1, "OPT-BLK-500", "블랙 / 500ml", createdAt),
+      createSeedOption(3, "openmarket", 2, "POUCH-S", "소형", createdAt),
+      createSeedOption(4, "openmarket", 2, "POUCH-L", "대형", createdAt)
     ],
     sku_master: [
       createSeedSku("EC-TUMBLER-RED-500", "데일리 텀블러 레드 500ml", true, createdAt),
@@ -77,6 +77,40 @@ function createSeedSku(skuCode, skuName, isActive, createdAt) {
   };
 }
 
+function createSeedProduct(id, platform, productId, productName, createdAt) {
+  return {
+    id,
+    platform,
+    product_id: productId,
+    seller_product_code: "",
+    product_name: productName,
+    status: "active",
+    category_code: "",
+    sale_price: 0,
+    tax_type: "",
+    brand: "",
+    manufacturer: "",
+    created_at: createdAt,
+    updated_at: createdAt
+  };
+}
+
+function createSeedOption(id, platform, productId, optionId, optionName, createdAt) {
+  return {
+    id,
+    platform,
+    product_id: productId,
+    option_id: optionId,
+    option_name: optionName,
+    status: "active",
+    option_price: 0,
+    stock_quantity: 0,
+    raw_option_name: "",
+    created_at: createdAt,
+    updated_at: createdAt
+  };
+}
+
 export class JsonDatabase {
   constructor(filePath = DEFAULT_DB_PATH, initialData = null) {
     this.filePath = filePath;
@@ -113,6 +147,19 @@ export class JsonDatabase {
       this.data.sequences.sku_price_histories = this.data.sku_price_histories.reduce((max, item) => Math.max(max, item.id || 0), 0);
     }
     const timestamp = new Date().toISOString();
+    for (const product of this.data.products || []) {
+      product.seller_product_code ??= "";
+      product.category_code ??= "";
+      product.sale_price ??= 0;
+      product.tax_type ??= "";
+      product.brand ??= "";
+      product.manufacturer ??= "";
+    }
+    for (const option of this.data.product_options || []) {
+      option.option_price ??= 0;
+      option.stock_quantity ??= 0;
+      option.raw_option_name ??= "";
+    }
     for (const sku of this.data.sku_master || []) {
       sku.spec ??= "";
       sku.unit ??= "";
